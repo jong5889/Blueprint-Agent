@@ -1,5 +1,121 @@
 <!doctype html>
-<!-- PLACEHOLDER initial preview — SLICE OWNER: yudo. Replace with a Samsung-styled sample screen. -->
-<html lang="ko"><head><meta charset="utf-8">
-<style>body{font:16px 'SamsungOne',-apple-system,sans-serif;margin:0;display:grid;place-items:center;height:100vh;background:#F4F4F6;color:#707078}</style>
-</head><body><div>🖼 목업을 생성하면 여기에 표시됩니다.</div></body></html>
+<!-- 초기 프리뷰 샘플 화면 (SLICE: yudo/CONTENT). 정적·보기용 — data-bp-* 불필요.
+     시드 녹취(태스크 상세)와 같은 도메인. 삼성 디자인 가이드라인 토큰 준수. -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440">
+<title>태스크 상세</title>
+<style>
+  :root {
+    --blue: #1428A0; --blue-dark: #0F1E78;
+    --bg: #F4F4F6; --border: #E0E0E5; --gray6: #707078; --gray9: #111111;
+    --ok: #0D9488; --warn: #FF9800; --danger: #E53935;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #fff; color: var(--gray9);
+    font: 16px/1.5 'SamsungOne', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 32px 40px; }
+  header { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  h1 { font-size: 32px; font-weight: 700; line-height: 1.1; margin: 0; letter-spacing: -0.5px; }
+  .badge {
+    font-size: 13px; font-weight: 500; padding: 6px 14px; border-radius: 20px;
+    background: rgba(20,40,160,0.08); color: var(--blue);
+  }
+  .spacer { margin-left: auto; }
+  .btn {
+    font: inherit; font-size: 14px; font-weight: 600; border: 0; cursor: pointer;
+    border-radius: 9999px; padding: 10px 22px; background: var(--blue); color: #fff;
+  }
+  .btn:hover { background: var(--blue-dark); }
+  .btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .btn.ghost { background: transparent; color: var(--blue); border: 1px solid var(--blue); }
+  .grid { display: grid; grid-template-columns: 1fr 320px; gap: 24px; margin-top: 32px; }
+  .card {
+    background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 24px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+  }
+  .card.subtle { background: var(--bg); box-shadow: none; }
+  .card h2 { font-size: 20px; font-weight: 600; margin: 0 0 16px; }
+  .desc { color: #333; }
+  .props { list-style: none; margin: 0; padding: 0; }
+  .props li { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .props li:last-child { border-bottom: 0; }
+  .props .k { color: var(--gray6); font-size: 13px; }
+  .props .v { font-weight: 500; }
+  .v.overdue { color: var(--danger); }
+  select {
+    font: inherit; font-size: 14px; border: 1px solid var(--border); border-radius: 8px;
+    padding: 6px 10px; background: #fff; color: var(--gray9);
+  }
+  select:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+  .comments { margin-top: 24px; }
+  .comment { padding: 16px 0; border-bottom: 1px solid var(--border); }
+  .comment .meta { font-size: 13px; color: var(--gray6); margin-bottom: 4px; }
+  .comment .meta b { color: var(--gray9); font-weight: 600; }
+  .cbox { display: flex; gap: 8px; margin-top: 16px; }
+  .cbox input {
+    flex: 1; font: inherit; font-size: 14px; border: 1px solid var(--border);
+    border-radius: 9999px; padding: 10px 18px;
+  }
+  .cbox input:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>결제 API 연동 오류 수정</h1>
+    <span class="badge">진행 중</span>
+    <div class="spacer"></div>
+    <button class="btn">저장</button>
+  </header>
+
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h2>설명</h2>
+        <p class="desc">결제 승인 응답에서 간헐적으로 타임아웃이 발생합니다. 재시도 로직을 추가하고,
+        실패 시 사용자에게 명확한 안내 메시지를 노출하도록 수정합니다. QA 케이스에 타임아웃
+        시나리오를 포함해 주세요.</p>
+      </div>
+
+      <div class="card comments">
+        <h2>댓글</h2>
+        <div class="comment">
+          <div class="meta"><b>김지원</b> · 2026-09-05 14:20</div>
+          <div>재시도 3회로 잡았는데 백오프 간격은 얼마로 할까요?</div>
+        </div>
+        <div class="comment">
+          <div class="meta"><b>박도현</b> · 2026-09-05 15:02</div>
+          <div>200ms, 500ms, 1s 지수 백오프로 갑시다.</div>
+        </div>
+        <div class="cbox">
+          <input type="text" placeholder="댓글을 입력하세요" aria-label="새 댓글">
+          <button class="btn">등록</button>
+        </div>
+      </div>
+    </div>
+
+    <aside>
+      <div class="card subtle">
+        <h2>속성</h2>
+        <ul class="props">
+          <li><span class="k">상태</span>
+            <select aria-label="상태 변경">
+              <option>할 일</option>
+              <option selected>진행 중</option>
+              <option>완료</option>
+            </select>
+          </li>
+          <li><span class="k">담당자</span><span class="v">박도현</span></li>
+          <li><span class="k">마감일</span><span class="v overdue">2026-09-06 (지남)</span></li>
+          <li><span class="k">우선순위</span><span class="v">높음</span></li>
+        </ul>
+      </div>
+    </aside>
+  </div>
+</div>
+</body>
+</html>
