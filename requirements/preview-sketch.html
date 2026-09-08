@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<!--
+  ⚠️ 이것은 예시 스케치일 뿐이며 정본(SSOT)이 아니다.
+  정본은 requirements_rev/blueprint-agent-requirements.md 이다.
+  이 파일의 값·이벤트·상태·레이아웃을 "계약"으로 오독하지 말 것.
+  콘솔의 "느낌(단일 통합 화면 · 골든패스)"만 전달하기 위한 것이다.
+  - 모드 분리 없음(단일 콘솔) · 뷰 = [목업 · 요구·제약 문서 · 누락 체크 · 버전]
+  - 골든패스: 대화 → 정리(req·constraints) → 목업 → 이터레이션 → freeze → export
+-->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blueprint Agent — 콘솔 스케치 (비정본)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root { --blue: #1428A0; }
+  body { font-family: 'SamsungOne', -apple-system, 'Segoe UI', Roboto, sans-serif; }
+</style>
+</head>
+<body class="h-screen bg-[#F4F4F6] text-[#111111] text-sm">
+<div id="root" class="h-screen flex flex-col gap-2 p-3"></div>
+
+<script>
+// ── 예시 데이터 (스케치용 · 계약 아님) ─────────────────────
+const SAMPLE = {
+  project: "태스크-상세",
+  meeting: "킥오프 회의",
+  transcript: [
+    { who: "기획자", text: "태스크 상세 화면이 필요해요. 제목, 담당자, 마감일, 상태를 보여주고요." },
+    { who: "PO",    text: "상태는 드롭다운으로 바꾸게 하고, 댓글도 달 수 있어야 해요." },
+    { who: "개발자", text: "첨부파일은요?" },
+    { who: "PO",    text: "이번 버전엔 없어도 됩니다. 나중에." },
+  ],
+  // 원천: requirements + constraints (1급 산출물)
+  requirements: `# Requirements — 태스크 상세
+
+## 화면 목적
+단일 태스크의 상세 정보를 확인·수정한다.
+
+## 기능 요구사항
+- **FR-1** 태스크 제목·담당자·마감일·상태 표시  [근거: u-001]
+- **FR-2** 상태를 드롭다운으로 변경 (Todo/In Progress/Done)  [근거: u-002]
+- **FR-3** 댓글 목록 표시 및 작성  [근거: u-002]`,
+  constraints: `# Constraints — 태스크 상세
+
+- **C-a** 첨부파일 업로드는 이번 버전 범위 밖 (명시적 제외)  [근거: u-004]`,
+  coverage: [
+    { text: "첨부파일 업로드", status: "excluded", src: "u-004" },  // 제외 결정 → constraint
+    { text: "마감일 알림",     status: "open",     src: "u-002" },  // 아직 미반영 (휴먼 게이트 대기)
+  ],
+  versions: [
+    { v: 3, at: "2026-09-08", mode: "edit",   base: 2, major: true  },
+    { v: 2, at: "2026-09-07", mode: "edit",   base: 1, major: false },
+    { v: 1, at: "2026-09-06", mode: "create",          major: false },
+  ],
+};
+
+// ── 아주 작은 markdown 렌더 (제목/리스트/굵게/코드만) ──
+function md(src) {
+  const esc = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  return src.split("\n").map(ln => {
+    if (/^## /.test(ln)) return `<h2 class="font-bold text-base mt-3 mb-1">${esc(ln.slice(3))}</h2>`;
+    if (/^# /.test(ln))  return `<h1 class="font-bold text-lg mt-1 mb-1">${esc(ln.slice(2))}</h1>`;
+    if (/^- /.test(ln))  return `<li class="ml-4 list-disc">${esc(ln.slice(2))
+        .replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')
+        .replace(/\[근거: (.+?)\]/g,'<span class="text-[10px] text-[#707078] bg-[#F4F4F6] border border-[#E0E0E5] rounded px-1 ml-1">근거 $1</span>')}</li>`;
+    if (ln.trim())       return `<p class="my-1">${esc(ln).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')}</p>`;
+    return "";
+  }).join("");
+}
+
+const S = { view: "mockup", frozen: false };
+const VIEWS = [
+  { k: "mockup",   label: "🖼 목업" },
+  { k: "doc",      label: "📋 요구·제약" },
+  { k: "coverage", label: "✅ 누락 체크" },
+  { k: "versions", label: "🗂 버전" },
+];
+
+function banner() {
+  return `<div class="shrink-0 text-[11px] text-[#707078] bg-white border border-[#E0E0E5] rounded-xl px-3 py-1">
+    ⚠️ 예시 스케치 · 정본 아님 — 정본은 <b>blueprint-agent-requirements.md</b>. 값·상태를 계약으로 읽지 말 것.
+  </div>`;
+}
+
+function header() {
+  const pill = "rounded-full px-4 py-1.5 text-white text-xs font-medium";
+  const chips = ["①대화 정리","②목업 생성","③확인·고도화"]
+    .map((p,i)=>`<span class="text-[11px] rounded-full px-3 py-1 border ${i<2?'bg-[#1428A0] text-white border-[#1428A0]':'bg-white text-[#707078] border-[#E0E0E5]'}">${p}${i<2?' ✓':''}</span>`).join("");
+  return `<div class="shrink-0 flex flex-wrap items-center gap-2">
+    <span class="font-bold text-base">Blueprint Agent</span>
+    <span class="text-[11px] text-[#707078]">${SAMPLE.project} · ${SAMPLE.meeting}</span>
+    <button class="${pill} bg-[#1428A0]">🪄 정리·목업 생성</button>
+    <button onclick="S.frozen=true;render()" class="${pill} ${S.frozen?'bg-[#00C853]':'bg-[#707078]'}">❄ Freeze (major)</button>
+    <button class="rounded-full px-4 py-1.5 text-xs font-medium border border-[#1428A0] text-[#1428A0] bg-white">⬇ Export</button>
+    <div class="flex gap-1 items-center ml-auto">${chips}</div>
+  </div>`;
+}
+
+function chatPanel() {
+  const bubbles = SAMPLE.transcript.map((m,i) => {
+    const mine = m.who === "PO";
+    return `<div class="flex flex-col ${mine?'items-end':'items-start'} mb-2">
+      <span class="text-[10px] text-[#707078]">${m.who} · u-00${i+1}</span>
+      <div class="max-w-[85%] rounded-xl px-3 py-1.5 ${mine?'bg-[#1428A0] text-white':'bg-[#F4F4F6] text-[#111111]'}">${m.text}</div>
+    </div>`;
+  }).join("");
+  return `<div class="flex flex-col h-full">
+    <div class="font-bold shrink-0 mb-2">대화 (회의 녹취)</div>
+    <div class="flex-1 overflow-auto rounded-xl border border-[#E0E0E5] bg-white p-3">${bubbles}</div>
+    <div class="flex gap-2 mt-2 shrink-0">
+      <input class="flex-1 border border-[#E0E0E5] rounded-full px-3 py-1.5 focus:ring-2 focus:ring-[#1428A0] outline-none" placeholder="발언 입력 (Enter)">
+      <button aria-label="음성 입력" class="rounded-full w-9 h-9 border border-[#E0E0E5] bg-white">🎤</button>
+      <button class="rounded-full px-4 text-white bg-[#1428A0] text-xs">보내기</button>
+    </div>
+  </div>`;
+}
+
+// (b) 생성 대상물 목업 예시 — Samsung 토큰 적용
+function mockupView() {
+  return `<div class="p-6 max-w-2xl">
+    <div class="text-xs text-[#707078] mb-3">태스크 #142</div>
+    <div class="flex items-start justify-between">
+      <h1 class="text-2xl font-bold">로그인 페이지 리디자인</h1>
+      <select aria-label="상태" class="border border-[#E0E0E5] rounded-xl px-3 py-1.5 bg-[#F4F4F6] focus:ring-2 focus:ring-[#1428A0] outline-none">
+        <option>In Progress</option><option>Todo</option><option>Done</option>
+      </select>
+    </div>
+    <div class="grid grid-cols-2 gap-4 mt-4 text-sm">
+      <div><div class="text-[#707078] text-xs">담당자</div>김하늘</div>
+      <div><div class="text-[#707078] text-xs">마감일</div>2026-09-15</div>
+    </div>
+    <hr class="my-4 border-[#E0E0E5]">
+    <div class="font-bold mb-2">댓글</div>
+    <div class="space-y-3">
+      <div class="text-sm"><b>이도현</b> <span class="text-[#707078] text-xs">2h</span><div>피그마 시안 공유했습니다.</div></div>
+      <div class="text-sm"><b>김하늘</b> <span class="text-[#707078] text-xs">1h</span><div>확인 후 작업 시작할게요.</div></div>
+    </div>
+    <div class="flex gap-2 mt-4">
+      <input aria-label="댓글" class="flex-1 border border-[#E0E0E5] rounded-xl px-3 py-2 focus:ring-2 focus:ring-[#1428A0] outline-none" placeholder="댓글 작성...">
+      <button class="bg-[#1428A0] text-white rounded-full px-5">등록</button>
+    </div>
+  </div>`;
+}
+
+function docView() {
+  return `<div class="p-5 grid md:grid-cols-2 gap-5">
+    <div class="rounded-xl border border-[#E0E0E5] bg-white p-4">${md(SAMPLE.requirements)}</div>
+    <div class="rounded-xl border border-[#E0E0E5] bg-white p-4">${md(SAMPLE.constraints)}</div>
+  </div>`;
+}
+
+// 커버리지/누락 체크 — 대화에 있으나 미반영 항목을 flag → 채택 / 제외
+function coverageView() {
+  const rows = SAMPLE.coverage.map(c => {
+    const tag = c.status === "excluded"
+      ? `<span class="text-[11px] rounded-full px-2 py-0.5 bg-[#F4F4F6] text-[#707078] border border-[#E0E0E5]">명시적 제외 → constraint</span>`
+      : `<span class="text-[11px] rounded-full px-2 py-0.5 bg-[#FFF3E0] text-[#FF9800] border border-[#FF9800]">미반영 — 결정 필요</span>`;
+    const actions = c.status === "open"
+      ? `<div class="flex gap-2"><button class="text-xs rounded-full px-3 py-1 bg-[#1428A0] text-white">채택</button>
+         <button class="text-xs rounded-full px-3 py-1 border border-[#E0E0E5] bg-white">제외</button></div>`
+      : `<span class="text-xs text-[#707078]">처리 완료</span>`;
+    return `<div class="flex items-center justify-between rounded-xl border border-[#E0E0E5] bg-white px-4 py-3">
+      <div><div class="font-medium">${c.text}</div>
+        <div class="text-[10px] text-[#707078] mt-0.5">근거 ${c.src} · ${tag}</div></div>
+      ${actions}
+    </div>`;
+  }).join("");
+  return `<div class="p-5 space-y-3">
+    <p class="text-xs text-[#707078]">대화에 등장했으나 요구·제약에 반영되지 않은 항목. 채택하거나 명시적으로 제외해야 하며, 그냥 사라지지 않는다.</p>
+    ${rows}
+  </div>`;
+}
+
+function versionsView() {
+  const rows = SAMPLE.versions.map(v => `<tr class="border-b border-[#E0E0E5]">
+    <td class="px-3 py-2 font-mono">v${v.v}</td>
+    <td class="px-3 py-2">${v.mode==='edit'?`✏ v${v.base} 수정`:'✨ 신규'}</td>
+    <td class="px-3 py-2">${v.major?'<span class="text-[11px] rounded-full px-2 py-0.5 bg-[#00C853] text-white">major (frozen)</span>':'<span class="text-[11px] text-[#707078]">draft</span>'}</td>
+    <td class="px-3 py-2 text-[#707078]">${v.at}</td>
+    <td class="px-3 py-2"><button class="text-xs rounded-full px-3 py-1 border border-[#E0E0E5] bg-white">보기</button></td>
+  </tr>`).join("");
+  return `<div class="p-5"><table class="w-full text-sm"><tbody>${rows}</tbody></table>
+    <p class="text-[10px] text-[#707078] mt-3">major·frozen 버전과 의결사항은 프로젝트 층위에 영속. draft는 회의체 종결 시 휘발 허용.</p></div>`;
+}
+
+function tabbar() {
+  return VIEWS.map(t => `<button onclick="S.view='${t.k}';render()"
+    class="rounded-full px-4 py-1.5 text-xs ${S.view===t.k?'bg-[#1428A0] text-white':'bg-[#F4F4F6] text-[#111111] hover:bg-[#E0E0E5]'}">${t.label}</button>`).join("");
+}
+
+function content() {
+  switch (S.view) {
+    case "mockup":   return mockupView();
+    case "doc":      return docView();
+    case "coverage": return coverageView();
+    case "versions": return versionsView();
+  }
+}
+
+function render() {
+  document.getElementById("root").innerHTML = `
+    ${banner()}
+    ${header()}
+    <div class="flex-1 flex flex-col md:flex-row gap-2 min-h-0">
+      <aside class="md:w-80 shrink-0 flex flex-col rounded-2xl border border-[#E0E0E5] bg-white p-3 min-h-0">
+        <div class="flex-1 min-h-0">${chatPanel()}</div>
+      </aside>
+      <main class="flex-1 flex flex-col bg-white rounded-2xl border border-[#E0E0E5] min-h-0">
+        <div class="shrink-0 flex flex-wrap gap-2 p-3 border-b border-[#E0E0E5]">${tabbar()}</div>
+        <div class="flex-1 overflow-auto">${content()}</div>
+      </main>
+    </div>`;
+}
+
+render();
+</script>
+</body>
+</html>
