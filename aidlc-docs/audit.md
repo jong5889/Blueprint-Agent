@@ -42,3 +42,11 @@
 **Context**: CONSTRUCTION. Awaiting worker completion (poll via fleet.sh read).
 
 ---
+
+## Integration + Gate (§5 [5]) + Model Decision
+**Timestamp**: 2026-09-08T07:42:00Z
+**User Input**: "zai key는 사용 안할거고 aws bearer token bedrock으로 적용해줘야돼" / "global.anthropic.claude-opus-4-8[1m] 모델로 수정 반영해줘" / "200k 모델로 진행해줘"
+**AI Response**: Merged 4 feat branches (0 conflicts). z.ai key invalid (401) on jd mac → switched llm.ts to Bedrock bearer token. Probed models: [1m] variant = 400 not-authorized on main-team05 key; global.anthropic.claude-opus-4-8 (200K) = 200 OK. User confirmed 200K model. Live pipeline PASS end-to-end. Screenshots captured. Working demo complete.
+**Context**: CONSTRUCTION complete. Traceability chain verified across all artifacts.
+
+---

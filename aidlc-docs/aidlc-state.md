@@ -34,9 +34,16 @@
 - suman: dashboard SPA · mingu: capture+mockup · gyu: reverse+generate · yudo: fixtures+templates+README
 
 ### 🟢 CONSTRUCTION PHASE
-- [x] jd scaffold build + freeze main (483c484: shared+server+freeze, typecheck+freeze self-test+boot smoke PASS)
-- [ ] Fleet parallel impl (4 slices) — prompts ready at /tmp/bp-prompts/send-*.md; awaiting dispatch go
-- [ ] Integration + gate + screenshots
+- [x] jd scaffold build + freeze main (483c484)
+- [x] Fleet parallel impl (4 slices) — suman/mingu/gyu/yudo all DONE + pushed feat/*; no global pause, no succession
+- [x] Integration + gate + screenshots (6641dce)
+  - merged feat/* → main, 0 conflicts (disjoint files)
+  - gate: tsc 0 · freeze self-test PASS · dashboard build PASS · LIVE pipeline PASS (Bedrock Opus 4.8, 200K)
+  - live run: mockup→freeze(10 comp/4 act/2 obj)→reverse(SRS/ERD/OpenAPI, FR-01..10)→generate(3 files)
+  - traceability verified: data-bp-* seam held · brief [근거:u-NNN] · spec FR-NN · code FR refs
+  - screenshots/: 01-console-customer, 02-console-developer, 03-generated-mockup (grounding visible)
+
+## DONE — working demo. LLM: Bedrock global.anthropic.claude-opus-4-8 ([1m] denied on main-team05 key).
 
 ## Env gotcha (jd mac)
 `node` = Bun shim; use `export PATH=/opt/homebrew/bin:$PATH` for real Node v26. Workers unaffected (own node). Only jd needs Playwright chromium; workers use PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1, yudo skips npm install.
