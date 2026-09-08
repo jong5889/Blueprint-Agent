@@ -224,7 +224,8 @@ export default function App() {
     setBusy('/mockup');
     try {
       const mkId = await postJob('/mockup', { project: s.project, transcript: s.transcript });
-      const mk = await pollJob(mkId);                           // { webPath, version, mode }
+      const mk = await pollJob(mkId);                           // { webPath, version, mode, brief }
+      if (mk?.brief) setBrief(mk.brief);                        // 원클릭 1단계(요구 정리) 결과를 노출 (§3.7.1)
       if (mk?.webPath && !latest.current.iframeUserSet) setIframeSrc(mk.webPath);
       await fetchVersions();
 
@@ -251,6 +252,7 @@ export default function App() {
   // ── 개발자 수동 단계 ──
   const doCapture = () => call('/capture', { transcript }, (r) => { setBrief(r.brief || ''); setTab('brief'); });
   const doMockup = () => call('/mockup', { project, transcript }, (r) => {
+    if (r.brief) setBrief(r.brief);                            // 목업이 실제로 근거한 브리프를 표시 (추적성)
     if (r.webPath && !latest.current.iframeUserSet) setIframeSrc(r.webPath);
     setTab('mockup'); fetchVersions();
   });
@@ -295,6 +297,7 @@ export default function App() {
     on('mockup', (d) => {
       const wp = typeof d === 'string' ? d : d.webPath;
       if (wp) { setIframeSrc(wp); setIframeUserSet(false); }
+      if (d && d.brief) setBrief(d.brief);
       fetchVersions();
     });
     on('contract', (d) => {

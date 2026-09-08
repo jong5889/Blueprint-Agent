@@ -50,3 +50,15 @@
 **Context**: CONSTRUCTION complete. Traceability chain verified across all artifacts.
 
 ---
+
+## Quality Pass (F1·F2·F3) — 요구사항/제약 정합성
+**Timestamp**: 2026-09-08T08:05:00Z
+**User Input**: "일단 B로 깔끔하게 잡고가자. 품질 우선해서 버그 없이 진행해줘."
+**AI Response**: 적합성 하네스(tests/conformance.ts) 작성, C-1~C-4+§3 검증. 감사에서 3건 발견·수정:
+- F1: /mockup이 brief 반환·노출 → 고객 원클릭 요구사항 뷰 채워짐(§3.7.1). MockupResult += brief.
+- F2: 편집 시 델타 발언에서만 수정 브리프 도출(briefFromUtterances(delta)), groundingIds 델타-only(§3.2.2/§3.2.3). 구조적 강제.
+- F3: C-4 델타 0이면 수정 차단(throw), briefSummary 버전 메타 저장(§3.2.3).
+게이트: tsc 0 · freeze self-test PASS · conformance 17/17 PASS. 스크린샷 04-customer-brief 추가.
+**Context**: CONSTRUCTION 품질 패스 완료. 다음 단계(추가 기능) 준비됨.
+
+---

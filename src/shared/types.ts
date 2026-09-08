@@ -14,7 +14,8 @@ export interface VersionEntry {
   mode?: 'create' | 'edit';
   baseVersion?: number;
   transcriptSnapshot?: string; // §3.2.3 grounding
-  groundingIds?: string[];     // utterance ids this version is grounded in
+  groundingIds?: string[];     // §3.2.3: create = all utterances, edit = delta-only
+  briefSummary?: string;       // §3.2.3: the requirement brief this version was built from
   usage?: { in: number; out: number };
 }
 
@@ -60,7 +61,7 @@ export interface CaptureInput { transcript: string }
 export interface CaptureResult { brief: string }
 
 export interface MockupInput { project: string; transcript: string }
-export interface MockupResult { webPath: string; version: number; mode: 'create' | 'edit' }
+export interface MockupResult { webPath: string; version: number; mode: 'create' | 'edit'; brief: string }
 
 export interface FreezeInput { webPath: string }
 

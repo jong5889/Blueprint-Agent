@@ -57,6 +57,7 @@ async function main() {
   check('T8a /mockup 202+jobId (async §3.7.3)', mk.status === 202 && !!mk.json.jobId, `status=${mk.status}`);
   const mkRes = await poll(mk.json.jobId);
   check('T5a 초기 생성 mode=create v1', mkRes.mode === 'create' && mkRes.version === 1, `mode=${mkRes.mode} v=${mkRes.version}`);
+  check('F1 /mockup 결과에 brief 포함(원클릭 요구정리 노출)', typeof mkRes.brief === 'string' && mkRes.brief.length > 20, `brief ${mkRes.brief?.length ?? 0}자`);
 
   // C-3-ish: mockup HTML carries data-bp-* (freeze seam)
   await soft('T3a 목업 data-bp-* 부착 (§7b seam)', () => {
@@ -128,7 +129,7 @@ async function main() {
   const extra = '\n기획자: 상단에 인쇄 버튼도 추가해 주세요.';
   const mk2 = await poll((await post('/mockup', { project: PROJECT, transcript: transcript + extra })).json.jobId);
   await soft('T5b 델타 수정 mode=edit (C-4/§3.2.2)', async () => {
-    // MockupResult 계약은 {webPath,version,mode} — baseVersion은 저장된 VersionEntry에서 확인.
+    // MockupResult 계약은 {webPath,version,mode,brief} — baseVersion은 저장된 VersionEntry에서 확인.
     assert.equal(mk2.mode, 'edit', `mode=${mk2.mode}`);
     assert.equal(mk2.version, 2, `v=${mk2.version}`);
     const vs = (await get('/versions')).json.versions as any[];
@@ -136,12 +137,29 @@ async function main() {
     assert.equal(v2?.baseVersion, 1, `stored base=${v2?.baseVersion}`);
     check('T5b 델타 수정 mode=edit (C-4/§3.2.2)', true, `v2 edit, 저장 baseVersion=1`);
   });
-  // version metadata (§3.2.3)
+  await soft('F2 편집 근거=델타-only (§3.2.2/§3.2.3)', async () => {
+    const vs = (await get('/versions')).json.versions as any[];
+    const v1 = vs.find(v => v.project === PROJECT && v.version === 1);
+    const v2 = vs.find(v => v.project === PROJECT && v.version === 2);
+    const g1 = new Set<string>(v1?.groundingIds ?? []);
+    const g2: string[] = v2?.groundingIds ?? [];
+    // 델타는 발언 1개 추가 → v2 근거는 소수(전체보다 작고), 전체 발언 집합 부분집합
+    assert.ok(g2.length > 0 && g2.length < g1.size, `v2근거 ${g2.length} < v1근거 ${g1.size}`);
+    check('F2 편집 근거=델타-only (§3.2.2/§3.2.3)', true, `v1=${g1.size}개 → v2=${g2.length}개(델타)`);
+  });
+  await soft('F3 C-4 델타 없으면 수정 차단(근거없는 수정 경로 없음)', async () => {
+    // 동일 transcript 재요청 → 델타 0 → 에러여야 함
+    const j = (await post('/mockup', { project: PROJECT, transcript: transcript + extra })).json as any;
+    let blocked = false;
+    try { await poll(j.jobId, 90); } catch (e: any) { blocked = /변경된 발언|C-4/.test(e.message); }
+    check('F3 C-4 델타 없으면 수정 차단(근거없는 수정 경로 없음)', blocked, blocked ? '델타 0 → 수정 차단됨' : '차단 안 됨!');
+  });
+  // version metadata (§3.2.3) — briefSummary 포함
   await soft('T8b 버전 메타데이터 보존 (§3.2.3)', async () => {
     const vs = (await get('/versions')).json.versions as any[];
     const v2 = vs.find(v => v.project === PROJECT && v.version === 2);
-    const missing = ['createdAt', 'mode', 'baseVersion', 'transcriptSnapshot', 'groundingIds'].filter(k => v2?.[k] == null);
-    check('T8b 버전 메타데이터 보존 (§3.2.3)', missing.length === 0, missing.length ? `누락: ${missing.join(',')}` : '생성시각·모드·부모·스냅샷·근거 보존');
+    const missing = ['createdAt', 'mode', 'baseVersion', 'transcriptSnapshot', 'groundingIds', 'briefSummary'].filter(k => v2?.[k] == null);
+    check('T8b 버전 메타데이터 보존 (§3.2.3)', missing.length === 0, missing.length ? `누락: ${missing.join(',')}` : '생성시각·모드·부모·스냅샷·근거·브리프요약 보존');
   });
 
   // ── T9 §3.7.3 — input validation (bad request → 400) ──

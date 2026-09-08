@@ -45,7 +45,7 @@ export async function latestVersion(project: string): Promise<VersionEntry | und
 export async function saveMockup(
   project: string,
   html: string,
-  meta: Partial<Pick<VersionEntry, 'mode' | 'baseVersion' | 'transcriptSnapshot' | 'groundingIds' | 'usage'>> = {},
+  meta: Partial<Pick<VersionEntry, 'mode' | 'baseVersion' | 'transcriptSnapshot' | 'groundingIds' | 'briefSummary' | 'usage'>> = {},
 ): Promise<{ webPath: string; version: number }> {
   await ensureDirs();
   const version = await nextVersion(project);
