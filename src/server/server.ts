@@ -195,10 +195,12 @@ app.post('/import', async (req, reply) => {
 });
 
 // ── STT 얇은 어댑터 (§4/C-6): 오디오 → 전사 텍스트. 미설정 시 이 라우트만 실패, 나머지 정상 ──
+const EXT: Record<string, string> = { 'audio/webm': 'webm', 'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/mp4': 'm4a', 'audio/x-m4a': 'm4a', 'audio/m4a': 'm4a', 'audio/mpeg': 'mp3', 'audio/ogg': 'ogg' };
 app.post('/stt', async (req, reply) => {
   const audio = req.body as Buffer;
   if (!Buffer.isBuffer(audio) || audio.length === 0) return reply.code(400).send({ error: 'audio body required' });
-  const { text } = await transcribe(audio);
+  const ct = String(req.headers['content-type'] || '').split(';')[0].trim();
+  const { text } = await transcribe(audio, `audio.${EXT[ct] || 'webm'}`);
   return { text };
 });
 
