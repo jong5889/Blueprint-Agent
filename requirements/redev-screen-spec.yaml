@@ -1,0 +1,197 @@
+# Blueprint Agent — 대시보드 재개발 화면 스펙 (AI-readable)
+# 목적: 다른 세션의 AI가 이 대시보드를 동일 수준으로 재개발하기 위한 단일 계약.
+# 원천: dashboard/src/App.tsx, sse.ts, mic.ts + src/server/server.ts 라우트.
+# 규칙: 이 파일이 화면의 정본. 값/이벤트/상태명은 코드에 1:1 대응. 추측 금지.
+
+meta:
+  app: "Blueprint Agent 대시보드"
+  type: "단일 페이지 앱(SPA), 라우팅 없음 — 상태 전환으로 뷰 교체"
+  stack: { ui: React, lang: TypeScript, css: "TailwindCSS(유틸리티 클래스)", md: "react-markdown + remark-gfm", yaml: "yaml.stringify" }
+  entry: "dashboard/index.html → src/main.tsx → <App/>"
+  viewport_root: "h-screen flex flex-col gap-2 p-2 bg-slate-100 text-slate-800"
+
+# ─────────────────────────────────────────────────────────────
+# 1. 모드 — 화면 전체를 가르는 최상위 토글
+modes:
+  customer:  # 기본 모드. 비개발자용 원클릭 흐름
+    default: true
+    main_views: [brief, mockup, spec]     # custView state
+    left_extra: "버전 칩 목록(현재 프로젝트로 필터)"
+    header_actions: ["🪄 목업 생성(C)", "🗂 템플릿(T)", "진행단계 칩"]
+  developer:  # 파이프라인 단계별 수동 실행 + 산출물 원본 확인
+    main_views: [mockup, brief, contract, spec, code, versions]  # tab state
+    header_actions: ["프로젝트명 입력", "⓪캡처", "①목업", "②Freeze", "③역도출", "④코드생성", "🗂 템플릿(T)"]
+  toggle:
+    control: "우상단 버튼 (⚙ ↔ ✕ 고객모드로)"
+    entry: ["버튼 클릭", "키 D", "URL ?dev=1", "localStorage bp-dev==='1'"]
+    persist: "localStorage['bp-dev'] = '1'|'0'"
+
+# ─────────────────────────────────────────────────────────────
+# 2. 레이아웃 — 공통 셸(모든 모드/뷰 공유)
+layout:
+  header:                       # shrink-0, flex-wrap, 한 줄
+    left: "타이틀 'Blueprint Agent' (font-bold text-sm)"
+    center: "모드별 액션 버튼군 (아래 modes 참조)"
+    right: "모드 토글 버튼 (ml-auto)"
+    error_line: "err 있으면 헤더 아래 빨간 줄 '⚠ {err}' (shrink-0 text-red-600)"
+  body: "flex-1, md 이상에서 좌우 2단(flex-row), 모바일 세로(flex-col)"
+  left_aside:                   # w-80(md), shrink-0
+    chat_panel:
+      title: "대화 (회의 녹취)"
+      body: "transcript를 parseTranscript로 버블화. '사용자:' 발화는 파랑·우측정렬(bg-blue-100 self-end), 나머지 회색·좌측(bg-slate-100 self-start). 화자 라벨 회색 소자."
+      autoscroll: "transcript 변경 시 최신 줄로 scrollTop=scrollHeight"
+      input_row: ["텍스트 입력(Enter=보내기)", "🎤 녹음/⏹ 중지 토글(녹음 중 빨강 pulse)", "보내기 버튼"]
+      empty: "transcript 없으면 '(녹취 로딩…)'"
+    version_chips:              # 고객 모드에서만 표시
+      label: "이전 버전 · {project}"
+      chip: "v{version}[✏ if edit], 현재 프리뷰=cyan, edit=amber, 그 외=slate"
+      tooltip: "{날짜} · {project} · {KB}KB · (신규 생성|v{base}에서 수정)"
+      empty: "(없음)"
+  right_main:                   # flex-1, bg-white rounded border
+    tabbar: "모드별 뷰 전환 버튼줄 (고객: 3버튼 / 개발자: 6버튼)"
+    content: "선택된 뷰 렌더 (섹션 3)"
+  maximize_overlay:             # 목업/프리뷰 최대화 (F 토글, ESC 닫기)
+    trigger: "프리뷰 상단 '⛶ 최대화 (F)'"
+    render: "fixed inset-0 z-50 bg-slate-900/95, 1440×900 고정 캔버스를 previewScale로 등비 축소"
+    scale: "min(innerWidth/1440, (innerHeight-44)/900), resize 시 재계산"
+    fullscreen: "requestFullscreen 시도(미지원 무시)"
+
+# ─────────────────────────────────────────────────────────────
+# 3. 화면(뷰) — 고유 6종. custView/tab 값으로 선택
+views:
+
+  mockup:                       # 🖼 목업 — 두 모드 공통, 앱의 중심
+    role: "생성된 목업 HTML을 iframe으로 프리뷰"
+    render:
+      bar: "iframeSrc 경로 표시 + '⛶ 최대화 (F)' 버튼"
+      iframe: "src=iframeSrc, 전체폭, onLoad 시 같은-오리진이면 단축키 핸들러 주입(iframe이 F/ESC 삼키는 것 방지)"
+    initial_src: "/fixture.html"
+    src_switching:
+      - "목업 잡 완료 → 새 webPath로 전환, iframeUserSet=false"
+      - "고객 모드 진입 시 fixture면 현재 프로젝트 최신 목업으로 자동 전환(사용자가 직접 안 골랐을 때만)"
+      - "버전 칩/버전탭 클릭 → 해당 webPath, iframeUserSet=true(이후 자동전환 안 함)"
+
+  brief:                        # 📋 요구사항 정의서 — capture 산출물
+    role: "회의 발언에서 정리된 요구사항 정의서(Markdown) 표시"
+    render: "Md 렌더러(prose)로 brief 문자열"
+    empty_customer: "'목업 생성 시 회의 발언에서 요구사항을 먼저 정리합니다 …'"
+    empty_dev: "'(캡처 대기)'"
+    source_event: "SSE 'brief' 또는 /capture 잡 결과 j.brief"
+
+  spec:                         # 📄 SRS — reverse(역도출) 산출물
+    role: "SRS · ERD · OpenAPI 명세(Markdown, GFM 표) 표시"
+    render: "Md 렌더러로 spec 문자열"
+    empty_customer: "'목업 생성이 완료되면 자동으로 명세를 도출합니다 — SRS · ERD · OpenAPI'"
+    empty_dev: "'(역도출 대기)'"
+    source_event: "SSE 'spec' 또는 /reverse 잡 결과 j.specMd. 완료 시 custView=spec 자동 전환"
+
+  contract:                     # Contract — 개발자 모드 전용. freeze 산출물
+    role: "Visual Contract YAML 원문 표시(기계가 소비하는 확정 산출물)"
+    render: "<pre> whitespace-pre-wrap, contract 문자열(객체면 yaml.stringify)"
+    empty: "'(Freeze 대기)'"
+    source: "/freeze 동기 응답(POST /freeze → 즉시 결과). SSE 'contract'로도 수신"
+
+  code:                         # 코드 — 개발자 모드 전용. generate 산출물
+    role: "생성된 코드 3파일(Markdown 코드펜스) + 파일명 칩"
+    render: "codeFiles를 orange 칩으로 나열 + Md로 code 본문"
+    empty: "'(코드 생성 대기)'"
+    source: "SSE 'code' 또는 /generate 잡 결과 { codeMd, files[] }"
+
+  versions:                     # 버전 — 개발자 모드 전용. 전 프로젝트 이력
+    role: "모든 프로젝트의 목업 버전 이력 목록"
+    row: "v{version} + (✏ v{base} 수정 | ✨ 신규) + 날짜 + '{project} · {KB}KB' + 보기 버튼(현재=보는 중)"
+    empty: "'(버전 없음 — ① 목업을 실행하면 이력이 쌓입니다)'"
+    source: "GET /versions → { versions: VersionEntry[] }"
+
+# ─────────────────────────────────────────────────────────────
+# 4. 상태(state) — App 컴포넌트 useState 목록 (재구현 시 그대로 필요)
+state:
+  transcript: "string — 회의 녹취 전문. 초기 GET /transcript"
+  draft: "string — 입력 중인 발언"
+  project: "string — 프로젝트명. localStorage['bp-project'], 기본 '태스크-상세'"
+  versions: "VersionEntry[] — 전 프로젝트 버전. GET /versions"
+  brief|contract|spec|code: "string — 각 단계 산출물 본문"
+  codeFiles: "string[] — 생성 코드 파일명"
+  iframeSrc: "string — 프리뷰 경로. 초기 '/fixture.html'"
+  iframeUserSet: "boolean — 사용자가 버전을 직접 골랐는가(자동전환 억제)"
+  custView: "'brief'|'mockup'|'spec' — 고객 뷰. 기본 'mockup'"
+  tab: "Tab — 개발자 뷰. 기본 'mockup'"
+  devMode: "boolean — ?dev=1 | localStorage"
+  busy: "string — 진행 중 잡 경로('' = 유휴). 버튼 disabled 근거"
+  autoPhase: "'capture'|'mockup'|'reverse'|'done'|null — 원클릭 체인 단계"
+  elapsed: "number — 진행 경과초"
+  err: "string|null — 에러 배너"
+  templates / activeTpl / tplOpen: "예시 템플릿 팝업"
+  recording / micRef: "STT 녹음 상태"
+  maximized / previewScale: "프리뷰 최대화"
+
+# ─────────────────────────────────────────────────────────────
+# 5. 파이프라인 — 단계·트리거·백엔드 계약
+pipeline:
+  order: ["⓪capture(요구정리)", "①mockup(목업)", "②freeze(Contract확정)", "③reverse(SRS/ERD/OpenAPI)", "④generate(코드)"]
+  customer_oneclick:            # 🪄 목업 생성(C) / runAuto
+    steps: "POST /mockup(캡처+목업 통합, 서버가 신규/델타 판정) → POST /freeze → POST /reverse"
+    phase_display: "PHASES 3칩 [①요구정리 → ②목업생성 → ③API명세], 현재 단계 pulse, 완료 ✓"
+  job_model:
+    async_endpoints: [/capture, /mockup, /reverse, /generate]
+    sync_endpoints: [/freeze]
+    async_flow: "POST → 202 { ok, jobId, status:'running' } → GET /jobs/:id 폴링(2s) until status 'done'|'error'"
+    poll: { interval_ms: 2000, timeout_ms: 480000, miss_limit: 5 }
+    trigger_retry: "postJob 3회 재시도(네트워크). 4xx/'…first'/'LLM 환경' 메시지는 즉시 throw(재시도 안 함)"
+  endpoints:                    # method path → 요청 → 응답/결과
+    "GET /transcript": "→ { transcript }"
+    "GET /templates": "→ { templates: Template[] }  # id,emoji,title,desc,category,project,transcript"
+    "GET /versions": "→ { versions: VersionEntry[] }"
+    "POST /capture": "{ transcript } → job.result { brief }"
+    "POST /mockup": "{ project, transcript } → job.result { webPath, ... }"
+    "POST /freeze": "(동기) → { contract } (객체 → yaml.stringify)"
+    "POST /reverse": "→ job.result { specMd }"
+    "POST /generate": "→ job.result { codeMd, files[] }"
+    "POST /stt/chunk": "오디오 청크 업로드(마이크). 서버가 화자분리 후 SSE 'stt-line' 방출"
+    "GET /events": "SSE 스트림(아래 sse)"
+
+# ─────────────────────────────────────────────────────────────
+# 6. SSE — 서버 푸시 이벤트 (useSse(onEvent) 구독). busy 해제는 SSE가 하지 않음(finally 담당)
+sse:
+  endpoint: "GET /events"
+  events:
+    brief: "→ applyResult('capture') : setBrief, tab=brief"
+    mockup: "→ setIframeSrc(webPath), iframeUserSet=false, fetchVersions"
+    contract: "→ setContract, tab=contract"
+    spec: "→ setSpec, tab=spec, custView=spec"
+    code: "→ setCode, setCodeFiles, tab=code"
+    error: "→ setErr(message)"
+    stt-line: "{ who, text } → transcript에 '{who}: {text}' 추가"
+    job: "{ jobId, kind, status } — 잡 상태 브로드캐스트(폴링 보조)"
+
+# ─────────────────────────────────────────────────────────────
+# 7. 키보드 단축키 (INPUT/TEXTAREA/편집중이면 무시)
+shortcuts:
+  F: "프리뷰 최대화 토글"
+  C: "고객 모드 & 유휴일 때 목업 생성(runAuto)"
+  T: "템플릿 팝업 토글"
+  R: "custView=brief(요구사항)"
+  M: "custView=mockup"
+  A: "custView=spec(SRS)"
+  D: "개발자 모드 토글"
+  Escape: "최대화 상태면 닫기"
+  note: "iframe은 별도 컨텍스트라 로드 시 같은-오리진이면 동일 keydown 핸들러를 iframe 문서에도 주입"
+
+# ─────────────────────────────────────────────────────────────
+# 8. 데이터 타입
+types:
+  ChatMsg: { who: string, text: string }
+  VersionEntry:
+    { project: string, version: number, createdAt: "ISO string", webPath: string, bytes: number,
+      "mode?": "'create'|'edit'", "baseVersion?": number }
+  Template: { id: string, emoji: string, title: string, desc: string, category: string, project: string, transcript: string }
+
+# ─────────────────────────────────────────────────────────────
+# 9. 재구현 시 놓치기 쉬운 함정 (코드 주석에서 추출)
+gotchas:
+  - "crypto.randomUUID는 보안 컨텍스트(HTTPS/localhost)에만 존재 — LAN http 접속 시 없어 마운트 크래시. genSessionId 폴백 필수"
+  - "/versions는 전 프로젝트 이력을 반환 — 칩은 project로 필터(projectVersions)해야 라벨 충돌 방지"
+  - "busy 해제는 SSE가 아니라 call()/runAuto의 finally가 담당 — SSE가 지우면 체인 중 버튼이 풀림"
+  - "runAuto는 project/transcript/busy를 매 렌더 캡처하므로 단축키는 ref로 최신 클로저 유지"
+  - "parseTranscript는 '발언자: 내용'에서 발언자 1~15자만 매칭, 아니면 who='' 순수 텍스트"
+  - "iframe onLoad마다 단축키 핸들러 재주입(cross-origin이면 무시)"
