@@ -34,6 +34,9 @@
 - suman: dashboard SPA · mingu: capture+mockup · gyu: reverse+generate · yudo: fixtures+templates+README
 
 ### 🟢 CONSTRUCTION PHASE
-- [ ] jd scaffold build + freeze main
-- [ ] Fleet parallel impl (4 slices)
+- [x] jd scaffold build + freeze main (483c484: shared+server+freeze, typecheck+freeze self-test+boot smoke PASS)
+- [ ] Fleet parallel impl (4 slices) — prompts ready at /tmp/bp-prompts/send-*.md; awaiting dispatch go
 - [ ] Integration + gate + screenshots
+
+## Env gotcha (jd mac)
+`node` = Bun shim; use `export PATH=/opt/homebrew/bin:$PATH` for real Node v26. Workers unaffected (own node). Only jd needs Playwright chromium; workers use PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1, yudo skips npm install.
