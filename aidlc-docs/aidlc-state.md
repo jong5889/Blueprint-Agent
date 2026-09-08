@@ -73,3 +73,8 @@
 - 계층: 프로젝트>회의체>버전 · req⇄constraints 대칭 1급
 - export 세트: requirements.md·constraints.md·mockup.html·visual-contract.json·trace.json·manifest.json
 - 시각계약: export 시점 결정적 추출(C-1) · 커버리지 체크→휴먼게이트(C-5) · 목업 직접편집 금지(C-2)
+
+## ✅ CONSTRUCTION(rev) DONE — subagent 병렬 + jd 통합
+- Phase 0(jd): 스캐폴드 동결(5ed5f56). Phase 1: 4 subagent 병렬(S-A extract/mockup/coverage · S-B contract/export/reimport · S-C 단일콘솔 · S-D 시드/문서), 전부 완료·규율 준수(shared/server 무단수정 0).
+- Phase 2(jd 통합): tsc 0 · contract self-test PASS · dashboard build PASS · 골든패스 라이브 PASS(회의→extract→mockup→coverage→델타→freeze→export 6파일→import 왕복) · conformance(rev) 12/12 PASS · 스크린샷 rev-01~04.
+- LLM: Bedrock global.anthropic.claude-opus-4-8. 저장: node:sqlite 인덱스 + 파일.

@@ -1,105 +1,163 @@
 # Blueprint Agent
 
-**회의 녹취 한 장을, 화면 → 계약 → 명세 → 코드로.**
+**AI-DLC의 앞단(requirements·constraints 작성)을 고도화한다 — 회의 대화를, 눈으로 확인 가능한 목업 + 재사용 가능한 요구·제약·시각 계약 export로.**
 
-회의에서 나온 이야기(녹취)를 붙여넣으면 Blueprint Agent가 이를 **요구사항 정의서**로 정리하고,
-그 요구로부터 **화면 목업(HTML)**을 만들고, 목업에서 **Visual Contract(확정 계약)**를 추출한 뒤,
-계약으로부터 **명세(SRS·ERD·OpenAPI)**와 **코드**까지 역으로 도출합니다.
+AI-DLC는 구조화된 요구·제약을 하류로 내려보내 개발을 진행한다. 그런데 "회의에서 오간 말"을 "AI-DLC가 소비할 수 있는 요구·제약"으로 정리하는 **그 앞단**은 비어 있다. Blueprint Agent가 그 빈 곳을 채운다.
+
+핵심은 **피드백 루프를 회의 자리로 당기는 것**이다. 오해는 회의에서 이미 생기는데, 보통은 MVP가 나온 뒤에야 드러난다 — 그때는 이미 토큰·시간을 쓴 뒤다. 이 제품은 회의 자리에서 **바로 볼 수 있는 목업**을 만들어 오해를 그 자리에서 소진한다.
+
+## 골든패스 (이 제품의 핵심 흐름)
 
 ```
-회의 녹취 ──▶ 요구사항 정의서 ──▶ 화면 목업(HTML) ──▶ Visual Contract ──▶ 명세(SRS/ERD/OpenAPI) ──▶ 코드
-   transcript      (capture)          (mockup)          (freeze)              (reverse)             (generate)
+회의 대화 입력  →  requirements·constraints 추출  →  목업(HTML) publish  →  누락 체크(채택/제외)
+                                                                                    │
+                          export ◀── freeze(major 고정) ◀────── 피드백 이터레이션(대화로 고도화·republish)
 ```
 
-각 단계의 산출물은 앞 단계에 **근거로 묶여 있습니다**(근거 사슬). 요구서의 모든 항목에는
-`[근거: u-NNN]` 태그로 어느 발언에서 나왔는지가 붙고, 계약·명세·코드는 그 위에서만 만들어집니다.
-"화면에 없는 것은 명세에 없고, 명세에 없는 것은 코드에 없다."
+- **원천은 requirements·constraints이고, 목업은 그로부터 나온 파생 뷰다.** 피드백은 목업을 직접 편집하는 게 아니라 대화·요청으로 들어와 요구·제약을 고치고, 목업은 거기서 다시 렌더된다.
+- export 시점에 목업에서 **시각 계약(Visual Contract)** 을 결정적으로 추출한다(모델 미사용).
 
 ## 한 눈에 보는 아키텍처
+
+**개념 구조 — 프로젝트 > 회의체 > 버전**
+
+```
+프로젝트 (영속)
+ └─ 회의체 (하나의 토론 단위; 여러 번 이터레이션)
+     └─ 버전 (피드백 루프마다 생성, freeze하면 major)
+```
+
+**모듈 맵**
 
 ```
 Blueprint-Agent/
   src/
-    server/    Fastify 앱 · 정적 서빙 · 잡 러너 · /events SSE      (동결)
-    shared/    types · 파일 저장소 · LLM 클라이언트 · id 생성       (동결)
-    stages/    capture → mockup → freeze → reverse → generate      (파이프라인)
-    prompts/   단계별 시스템 프롬프트
-  dashboard/   React + TS + Tailwind 단일 페이지 대시보드
-  fixtures/    시드 녹취 · 예시 템플릿 · 초기 프리뷰 화면
+    server/    Fastify(:3000) — HTTP API + 세션 스코프 SSE(/events?sid=) + 잡 러너
+    shared/    types · store(계층형: 인덱스=node:sqlite, 산출물=파일) · llm 클라이언트 · id 생성
+    stages/    extract → mockup → coverage → contract(결정적) → export → reimport
+    prompts/   extract·mockup·coverage 시스템 프롬프트
+  dashboard/   React + TS + Tailwind — 단일 통합 콘솔(모드 분리 없음)
+  fixtures/    seed-transcripts/ 예시 회의 녹취 · fixture.html 초기 프리뷰 화면
+  data/        (런타임) projects/…/versions/… · exports/…/v<major>/
+  aidlc-docs/  이 제품 자체를 AI-DLC로 만든 산출물(정본은 requirements/)
 ```
 
-- **백엔드** Fastify(:3000) — HTTP API + SSE(`/events`). 비동기 잡은 `POST → 202 → GET /jobs/:id` 폴링.
-- **프론트** Vite 대시보드(:5173) — 고객 원클릭 모드 / 개발자 6뷰 모드.
-- **LLM** `src/shared/llm.ts`의 `callLLM({system,user})` 단일 진입점. 키는 환경변수로만.
+- **모델 쓰는 단계**(extract·mockup·coverage)는 비동기 — `POST → 202(jobId) → GET /jobs/:id` 폴링 + SSE 스트리밍.
+- **결정적 단계**(freeze·시각 계약 추출·export·import)는 동기로 즉시 응답. 계약 추출은 Playwright로 목업의 기하·구조만 읽는다 — **같은 목업이면 언제나 같은 계약**(모델 비용 0).
 
-## 불변 원칙 4가지
+**export 세트** (freeze된 major마다 `data/exports/<project>/<meeting>/v<major>/`)
 
-| # | 원칙 | 뜻 |
-|---|---|---|
-| **C-1** | freeze는 결정적이다 | `freeze.ts`는 LLM을 쓰지 않는다. Playwright로 기하·구조만 읽어 계약을 만든다. 같은 HTML ⇒ 항상 같은 계약. |
-| **C-2** | reverse는 계약만 본다 | 명세 도출은 Visual Contract만 입력으로 받는다. 녹취·마크업을 다시 보지 않는다. |
-| **C-3** | 근거 없는 생성 금지 | capture·mockup은 발언에 없는 요소를 만들지 않는다. 요구서는 `[근거: u-NNN]` 태그를 단다. |
-| **C-4** | 편집은 델타로 | 목업 수정은 이전 버전 + 변경 발언에만 기반한다(전면 재생성 아님). |
+| 파일 | 내용 |
+|---|---|
+| `requirements.md` / `constraints.md` | 확정본 (항목별 `[근거: u-NNN]`) |
+| `mockup.html` | 확정 목업 |
+| `visual-contract.json` | 목업에서 결정적 추출한 시각 계약 |
+| `trace.json` | 근거 추적 정본(발언·항목·결정·계보) |
+| `manifest.json` | re-import 왕복의 최소 정보(중요 의결사항 + 근거) |
 
 ## 시작하기
 
 ### 사전 요건
-- **Node.js 20+** (ESM · `tsx` 사용)
-- LLM 호출용 Anthropic 호환 API 키 — 키 없이도 빌드·타입체크는 됩니다. 실제 파이프라인 실행에만 필요합니다.
+
+- **Node.js 22 이상** — 저장 계층이 `node:sqlite`(Node 22+ 내장)를 쓴다. 그 아래 버전은 서버가 뜨지 않는다.
+- LLM 접근용 API 자격 — 키 없이도 설치·빌드는 되지만, extract·mockup·coverage(모델 단계)는 키가 있어야 동작한다.
 
 ### 설치
+
 ```bash
-npm install          # postinstall이 Playwright Chromium도 내려받습니다(freeze용)
+npm install          # postinstall이 시각 계약 추출용 Playwright Chromium도 내려받는다
 ```
 
 ### 환경변수 (`.env.example` 참고)
+
+`src/shared/llm.ts`가 아래 두 프로바이더 중 설정된 쪽을 자동 선택한다. **키는 코드에 하드코딩하지 않는다(env 전용).**
+
 ```bash
-ANTHROPIC_API_KEY=your-key-here
-ANTHROPIC_BASE_URL=https://api.anthropic.com   # z.ai / Bedrock 프록시도 가능
-LLM_MODEL=claude-opus-4-8
+# Provider A — Amazon Bedrock (데모 기본값)
+AWS_BEARER_TOKEN_BEDROCK=your-bearer-token
+AWS_REGION=ap-northeast-2
+LLM_MODEL=global.anthropic.claude-opus-4-8
+
+# Provider B — Anthropic Messages API (대안; 위 Bedrock 대신 설정)
+# ANTHROPIC_API_KEY=your-key
+# ANTHROPIC_BASE_URL=https://api.anthropic.com
+# LLM_MODEL=claude-opus-4-8
+
 PORT=3000
 ```
-> 키를 하드코딩하지 않습니다. 환경변수가 없으면 LLM 단계에서 `"LLM 환경 미설정"` 에러를 반환합니다.
 
-### 실행 (터미널 2개)
+### 실행
+
+**개발(터미널 2개, 핫리로드):**
+
 ```bash
 npm run dev:server      # 백엔드 → http://localhost:3000
 npm run dev:dashboard   # 대시보드 → http://localhost:5173  (API·SSE는 :3000으로 프록시)
 ```
-브라우저에서 **http://localhost:5173** 접속.
+
+접속: **http://localhost:5173**
+
+**프로덕션/단일 포트(빌드 후):**
+
+```bash
+npm run build:dashboard   # dashboard/dist 생성
+npm start                 # :3000 하나에서 API + 빌드된 대시보드를 함께 서빙
+```
+
+접속: **http://localhost:3000**
 
 ## 사용 매뉴얼
 
-### 고객 모드 (원클릭)
-비개발자용 기본 모드입니다. `brief · mockup · spec` 3뷰만 보입니다.
-1. 좌측 **대화 패널**에 회의 녹취를 붙여넣거나, 헤더의 **🗂 템플릿(T)**에서 예시 회의를 고릅니다.
-2. **🪄 목업 생성(C)** 버튼(또는 `C` 키)을 누릅니다.
-3. 상단 진행 칩이 **①요구정리 → ②목업생성 → ③API명세** 순으로 진행됩니다.
-4. 완료되면 자동으로 명세 뷰가 뜹니다. `R`(요구서) · `M`(목업) · `A`(명세) 키로 뷰를 전환합니다.
-5. 프리뷰는 **⛶ 최대화(F)**로 1440×900 전체 화면 확인이 가능합니다.
+단일 콘솔에서 골든패스를 그대로 돈다. 좌측은 회의 대화(채팅), 우측은 산출물(요구·제약 문서 / 목업 프리뷰)이다.
 
-### 개발자 모드 (6뷰 · 수동 단계 실행)
-우상단 **⚙** 버튼(또는 `D` 키, `?dev=1`)으로 진입. `mockup · brief · contract · spec · code · versions` 6뷰.
-헤더에서 각 단계를 순서대로 눌러 실행하고 원본 산출물을 확인합니다.
-
-| 버튼 | 단계 | 산출물 뷰 |
-|---|---|---|
-| ⓪ 캡처 | 녹취 → 요구사항 정의서 | **brief** |
-| ① 목업 | 요구서 → HTML 목업 | **mockup**(iframe 프리뷰) |
-| ② Freeze | 목업 → Visual Contract | **contract**(YAML 원문) |
-| ③ 역도출 | 계약 → SRS·ERD·OpenAPI | **spec** |
-| ④ 코드생성 | 명세 → 코드 3파일 | **code**(파일명 칩 + 코드펜스) |
-
-**versions** 뷰에는 전 프로젝트의 목업 버전 이력이 쌓입니다(신규 ✨ / 수정 ✏).
+1. **대화 입력** — 좌측 패널에 회의 녹취를 붙여넣는다. `발언자: 내용` 형식을 쓰면 발언자별로 구분되고, 라벨 없는 줄도 하나의 발언으로 들어간다. 예시는 `fixtures/seed-transcripts/`의 3개 도메인 녹취(태스크 상세 · 주문 상세 · 진료 예약)를 그대로 붙여 쓰면 된다.
+2. **생성** — requirements·constraints를 추출하고(`extract`) 목업을 publish한다(`mockup`). 상단에 진행 상태가 실시간 표시된다. 완료되면 우측에 요구·제약 문서와 목업 프리뷰가 뜬다. 각 항목에는 `[근거: u-NNN]` 태그가 붙어 어느 발언에서 나왔는지 역추적된다.
+3. **누락 체크(coverage)** — 대화 전체 대비 현재 요구·제약을 대조해 "요청됐으나 반영 안 된 항목"을 체크리스트로 flag한다. 각 항목을 사람이 **채택**(요구/제약으로 편입) 또는 **의도적 제외**(제외 결정 자체가 하나의 constraint가 됨) 중 하나로 처리한다. 자동 추가는 하지 않는다 — 요청은 반영처 없이 사라지지 않는다.
+4. **피드백 이터레이션** — 목업을 본 사람들의 피드백을 다시 대화로 추가하면, 근거 델타 기반으로 요구·제약을 고도화(develop)하고 목업을 republish한다. 만족할 때까지 반복.
+5. **freeze** — 만족한 버전을 major 버전으로 고정한다.
+6. **export** — 확정본 + 목업 + 시각 계약 + 근거 추적 메타를 파일 세트로 낸다. 이 세트는 다른 회의체에서 **re-import**(왕복)하거나, 하류 개발 사이클(SRS·HLD·LLD·ADR·코드)의 입력으로 태울 수 있다.
 
 ### 스크린샷
-실행 화면 캡처는 `screenshots/` 에 있습니다(심사 시 jd가 추가). 없으면 위 두 URL로 직접 확인하세요.
+
+실행 화면 캡처는 `screenshots/`에 있다. 없으면 위 URL로 직접 확인한다.
 
 ### 트러블슈팅
+
 | 증상 | 원인 · 해결 |
 |---|---|
-| LLM 단계에서 `"LLM 환경 미설정"` | `.env`에 `ANTHROPIC_API_KEY` 설정. 키 없이 UI는 뜨지만 파이프라인은 실행 불가. |
-| 대시보드는 뜨는데 데이터가 안 옴 | `dev:server`가 :3000에서 떠 있는지 확인. 대시보드는 :3000으로 프록시함. |
-| Freeze(②)가 실패 | Playwright Chromium 필요. `npx playwright install chromium` 재실행. |
-| LAN(http) 접속 시 마운트 크래시 | `crypto.randomUUID`가 보안 컨텍스트 전용이라 폴백 처리됨 — 최신 코드로 갱신하세요. |
-| 잡이 안 끝남 | 폴링 타임아웃 480초. LLM 응답 지연이면 대기, 반복되면 서버 로그 확인. |
+| 서버가 `node:sqlite` 관련 오류로 안 뜸 | Node 22 미만이다. `node -v` 확인 후 22+로 올린다. |
+| 모델 단계에서 `"LLM 환경 미설정"` | `.env`에 Bedrock 또는 Anthropic 자격을 설정. 키 없이 UI는 뜨지만 extract/mockup/coverage는 실행 불가. |
+| 대시보드는 뜨는데 데이터가 안 옴 | `dev:server`가 :3000에 떠 있는지 확인. dev 대시보드(:5173)는 :3000으로 프록시한다. |
+| export의 시각 계약 추출이 실패 | Playwright Chromium이 필요하다. `npx playwright install chromium` 재실행. |
+| LAN(http)에서 접속 시 크래시 | `crypto.randomUUID`는 보안 컨텍스트(HTTPS/localhost) 전용 — 폴백 처리됨. 최신 코드로 갱신. |
+| 비동기 잡이 안 끝남 | 폴링 타임아웃 480초. LLM 지연이면 대기, 반복되면 서버 로그 확인. |
+
+## 시스템 불변 원칙 6가지
+
+전 기능에 우선한다. 어떤 기능도 이를 위반하지 않는다. (상세 제약 `requirements/constraints.md` C-1~C-6과 대응)
+
+| # | 원칙 | ↔ |
+|---|---|---|
+| 1 | 원천은 requirements·constraints, 목업은 파생물. 하류로 나가는 것은 목업 원본이 아니라 시각 계약. | C-2 |
+| 2 | 근거 없는 생성 금지. 대화에 없는 요구·제약, 요구·제약에 없는 목업 요소를 만들지 않는다. | C-3 |
+| 3 | 근거 없는 변경·삭제 금지. 고도화는 근거(대화·피드백) 없이 발생하지 않는다. | C-4 |
+| 4 | 근거 없는 휘발 금지. 등장한 요청은 채택되거나 명시적으로 제외되며, 반영처 없이 사라지지 않는다. | C-5 |
+| 5 | 계약 추출의 결정성. export 시점 시각 계약 추출은 모델을 쓰지 않는다. 동일 입력 → 동일 계약, 비용 0. | C-1 |
+| 6 | 근거 보존. 모든 산출물은 상위 산출물과 그 근거(회의 발언)를 함께 보존한다. | — |
+
+### 제약 요약 (C-1~C-6)
+
+- **C-1** export 계약 추출에 언어 모델을 도입하지 않는다(결정적·렌더 기반).
+- **C-2** 원천은 requirements·constraints, 목업은 파생물 — 목업 손편집으로 원천을 우회 수정하지 않는다.
+- **C-3** 근거 없는 보완 생성을 허용하지 않는다 — 부족한 것은 부족한 채로 둔다.
+- **C-4** 고도화(수정)는 직전 버전 + 근거 델타로만 — 델타 0이면 수정 차단.
+- **C-5** 대화에 등장한 요청은 채택 또는 명시적 제외로만 귀결 — 휘발 금지.
+- **C-6** 얇은 슬라이스 — 음성 입력 등 부수 기능이 core 골든패스를 복잡화하지 않는다.
+
+## 범위
+
+**범위 안** — 대화 입력·저장 · req·constraints 추출 · 목업 publish · 이터레이션·고도화 · 누락 체크 · 버전·freeze · export & 결정적 계약 추출 · re-import · 근거 추적성 · 단일 콘솔.
+
+**범위 밖(하류 몫)** — SRS·ERD·OpenAPI·HLD·LLD·ADR 산출, 코드 생성. 전부 export를 소비하는 하류 개발 사이클의 몫이다. 이 제품은 그 입력(확정본·목업·계약)까지만 책임진다.
+
+> 요구의 유일 정본(SSOT)은 `requirements/blueprint-agent-requirements.md` + `requirements/constraints.md`이고, 디자인 규격 정본은 `requirements/samsung-design-guidelines.md`다.
