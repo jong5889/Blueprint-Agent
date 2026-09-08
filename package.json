@@ -1,0 +1,36 @@
+{
+  "name": "blueprint-agent",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev:server": "tsx watch src/server/server.ts",
+    "dev:dashboard": "vite --config dashboard/vite.config.ts",
+    "build:dashboard": "vite build --config dashboard/vite.config.ts && cp fixtures/fixture.html dashboard/dist/fixture.html",
+    "start": "tsx src/server/server.ts",
+    "typecheck": "tsc --noEmit",
+    "postinstall": "playwright install chromium || true"
+  },
+  "dependencies": {
+    "@fastify/static": "^7.0.4",
+    "fastify": "^4.28.1",
+    "playwright": "^1.48.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "yaml": "^2.6.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/typography": "^0.5.15",
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/node": "^22.7.0",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.2",
+    "tailwindcss": "^4.0.0",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2",
+    "vite": "^5.4.8"
+  }
+}

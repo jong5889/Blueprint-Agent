@@ -90,6 +90,25 @@ transcript --/mockup--> [capture: LLM -> Brief] --> [mockup: LLM -> HTML+intent]
   --/reverse--> [reverse: LLM -> SRS/ERD/OpenAPI] --SSE spec--> (--/generate--> [generate: LLM -> code] --SSE code-->)
 ```
 
+## 7b. Author-intent metadata schema — mingu↔jd FREEZE SEAM (locked)
+
+> The one contract seam that would silently break downstream. `mockup.ts` (mingu) EMITS these; `freeze.ts` (jd) READS them. Both sides bound here. Prefix `data-bp-` avoids collisions.
+
+On each meaningful element in generated mockup HTML:
+- `data-bp-id`   — stable id, kebab: components `c-…`, actions `a-…` (e.g. `c-title`, `a-save`)
+- `data-bp-role` — one of: `title | subtitle | badge | button | input | select | text | image | list | listitem | field | container`
+- `data-bp-bind` — data binding `"<object>.<field>"` (e.g. `task.title`) — optional, for data-displaying elements
+- `data-bp-action` — for actionable elements, compact `verb;target;fields;result` (e.g. `update;task;status;done`). semicolon-delimited, fields comma-joined.
+
+Data objects declared once at document root:
+```html
+<script type="application/bp-objects">
+[{"id":"task","fields":[{"name":"title","type":"string","display":"text"}]}]
+</script>
+```
+
+`freeze.ts` algorithm (deterministic, no LLM): Playwright renders at viewport 1440×900 → `document.querySelectorAll('[data-bp-id]')` → per element: `getBoundingClientRect()`→box, parse `data-bp-role`→role, `data-bp-bind`→bind, `data-bp-action`→action fields. Elements with `data-bp-id` starting `a-` (or having `data-bp-action`) → `actions[]`; else → `components[]`. `dataObjects[]` from the root `bp-objects` JSON. `stateFlow[]` from each action's verb→result. Same HTML ⇒ identical VisualContract (원칙2 / C-1).
+
 ## 7. Invariant enforcement points
 - C-1 (freeze deterministic): `freeze.ts` imports NO llm.ts; pure geometry+structure+intent fusion. jd-owned.
 - C-2 (reverse contract-only): `runReverse` signature takes `{contract}` only; never transcript/markup.
