@@ -72,6 +72,8 @@ export default function App() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [major, setMajor] = useState<number | null>(null);
+  const [recording, setRecording] = useState(false);          // STT 얇은 어댑터(§4)
+  const micRef = useRef<MediaRecorder | null>(null);
 
   // 새 회의체 폼
   const [showNew, setShowNew] = useState(false);
@@ -156,6 +158,33 @@ export default function App() {
     if (!meeting) { setError('먼저 회의체를 선택하거나 생성하세요.'); return; }
     setTranscript(s.transcript); saveTranscript(meeting.id, s.transcript);
     putTranscript(s.transcript).catch(e => setError(String(e?.message ?? e)));
+  }
+
+  // ── STT 얇은 어댑터(§4/C-6): 마이크 녹음 → /stt 전사 → 입력창에 삽입(사용자 검토 후 보내기). 미설정 시 이 기능만 실패. ──
+  async function toggleMic() {
+    if (recording) { micRef.current?.stop(); return; }
+    if (!meeting) { setError('먼저 회의체를 선택하세요.'); return; }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      const chunks: BlobPart[] = [];
+      mr.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        setRecording(false); micRef.current = null;
+        const blob = new Blob(chunks, { type: mr.mimeType || 'audio/webm' });
+        if (!blob.size) return;
+        try {
+          setBusy('/stt');
+          const r = await fetch('/stt', { method: 'POST', headers: { 'content-type': blob.type }, body: blob });
+          if (!r.ok) { const e = await r.json().catch(() => ({} as any)); throw new Error(e.error || `HTTP ${r.status}`); }
+          const { text } = await r.json();
+          if (text) setInput(prev => (prev ? prev + ' ' : '') + text);
+        } catch (e: any) { setError('음성 인식 실패: ' + (e?.message ?? e)); }
+        finally { setBusy(null); }
+      };
+      mr.start(); micRef.current = mr; setRecording(true); setError('');
+    } catch { setError('마이크를 사용할 수 없습니다.'); }
   }
 
   // ── 골든패스: 🪄 생성 (extract → mockup 자동 체인) ──
@@ -302,6 +331,8 @@ export default function App() {
           <div className="flex gap-2 mt-2 shrink-0">
             <input aria-label="발언 입력" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') send(); }}
               placeholder="발언 입력 (예: 기획자: … / Enter)" className="flex-1 border border-[#E0E0E5] rounded-full px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#1428A0]" />
+            <button onClick={toggleMic} disabled={!meeting || (!!busy && busy !== '/stt')} aria-label={recording ? '녹음 중지' : '녹음 시작(음성 입력)'}
+              className={`${btn} focus:outline-none focus:ring-2 focus:ring-[#1428A0] ${recording ? 'bg-[#E53935] text-white animate-pulse' : 'bg-[#F4F4F6] text-[#111]'}`}>{recording ? '⏹' : '🎤'}</button>
             <button onClick={send} disabled={!meeting} className={`${btn} bg-[#1428A0] text-white`}>보내기</button>
           </div>
         </aside>

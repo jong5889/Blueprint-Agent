@@ -18,9 +18,12 @@ import { runCoverage } from '../stages/coverage.js';
 import { extractContract } from '../stages/contract.js';
 import { buildExportSet } from '../stages/export.js';
 import { readExportSet } from '../stages/reimport.js';
+import { transcribe } from '../stages/stt.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const app = Fastify({ logger: { level: 'info' } });
+const app = Fastify({ logger: { level: 'info' }, bodyLimit: 25 * 1024 * 1024 });
+// 오디오 청크(STT)는 원시 바이트로 버퍼링
+app.addContentTypeParser(/^audio\//, { parseAs: 'buffer' }, (_req, body, done) => done(null, body));
 const jobs = new Map<string, Job>();
 
 function startJob(kind: JobKind, sseEvent: SseEvent, sid: string, fn: () => Promise<unknown>): string {
@@ -189,6 +192,14 @@ app.post('/import', async (req, reply) => {
   const r = await readExportSet({ dir: (req.body as any).dir });
   const m = store.createMeeting({ project: r.project, title: `${r.title} (재개)`, requirementsMd: r.requirementsMd, constraintsMd: r.constraintsMd });
   return m;
+});
+
+// ── STT 얇은 어댑터 (§4/C-6): 오디오 → 전사 텍스트. 미설정 시 이 라우트만 실패, 나머지 정상 ──
+app.post('/stt', async (req, reply) => {
+  const audio = req.body as Buffer;
+  if (!Buffer.isBuffer(audio) || audio.length === 0) return reply.code(400).send({ error: 'audio body required' });
+  const { text } = await transcribe(audio);
+  return { text };
 });
 
 // ── static + error handler ──
