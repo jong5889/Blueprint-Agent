@@ -5,7 +5,7 @@
 import type { FastifyReply } from 'fastify';
 
 export type SseEvent =
-  | 'brief' | 'mockup' | 'contract' | 'spec' | 'code' | 'error' | 'stt-line' | 'job';
+  | 'extract' | 'mockup' | 'coverage' | 'error' | 'stt-line' | 'job';
 
 const clients = new Set<{ reply: FastifyReply; sid: string }>();
 
