@@ -168,6 +168,27 @@ async function main() {
     check('T9 잘못된 입력 400 (§3.7.3 입력검증)', r.status === 400, `status=${r.status}`);
   });
 
+  // ── T10 §3.7.3 — SSE는 세션 스코프(다른 세션으로 이벤트 누출 없음) ──
+  await soft('T10 SSE 세션 스코프 (누출 없음)', async () => {
+    const http = await import('node:http');
+    const port = Number(process.env.BP_PORT || 3900);
+    const listen = (sid: string) => {
+      const got: string[] = [];
+      const req = http.get({ host: 'localhost', port, path: '/events?sid=' + sid }, res => {
+        res.setEncoding('utf8');
+        res.on('data', (c: string) => { for (const m of c.matchAll(/event:\s*(\w+)/g)) got.push(m[1]); });
+      });
+      return { got, close: () => req.destroy() };
+    };
+    const A = listen('T10-A'), B = listen('T10-B');
+    await new Promise(r => setTimeout(r, 700));
+    await fetch(BASE + '/capture', { method: 'POST', headers: { 'content-type': 'application/json', 'x-session-id': 'T10-A' }, body: JSON.stringify({ transcript: '기획자: 간단한 목록 화면' }) });
+    await new Promise(r => setTimeout(r, 45000));
+    A.close(); B.close();
+    const ok = A.got.includes('brief') && !B.got.includes('brief');
+    check('T10 SSE 세션 스코프 (누출 없음)', ok, `A=[${A.got.join(',')}] B=[${B.got.join(',')}]`);
+  });
+
   // ── summary ──
   const pass = results.filter(r => r.ok).length, fail = results.length - pass;
   console.log(`\n===== CONFORMANCE: ${pass}/${results.length} PASS, ${fail} FAIL =====`);

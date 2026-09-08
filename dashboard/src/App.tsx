@@ -60,7 +60,9 @@ export default function App() {
   const sessionId = useMemo(genSessionId, []);
 
   // ── state (§4) ──
-  const [transcript, setTranscript] = useState('');
+  // 작업 중 녹취는 localStorage에 영속화 → 새로고침해도 추가 발언 유지 (없으면 서버 시드 1회 로드)
+  const seededRef = useRef(localStorage.getItem('bp-transcript') != null);
+  const [transcript, setTranscript] = useState(() => localStorage.getItem('bp-transcript') ?? '');
   const [draft, setDraft] = useState('');
   const [project, setProject] = useState(() => localStorage.getItem('bp-project') || '태스크-상세');
   const [versions, setVersions] = useState<VersionEntry[]>([]);
@@ -107,12 +109,17 @@ export default function App() {
     } catch { /* ignore */ }
   }, []);
 
-  // 초기 로드
+  // 초기 로드 — 저장된 녹취가 없을 때만 서버 시드를 1회 가져온다
   useEffect(() => {
-    fetch('/transcript').then(r => r.json()).then(d => setTranscript(d.transcript || '')).catch(() => {});
+    if (!seededRef.current) {
+      fetch('/transcript').then(r => r.json()).then(d => setTranscript(d.transcript || '')).catch(() => {});
+    }
     fetch('/templates').then(r => r.json()).then(d => setTemplates(d.templates || [])).catch(() => {});
     fetchVersions();
   }, [fetchVersions]);
+
+  // 녹취 영속화 (§3.1.1: 작업 중 발언 유지)
+  useEffect(() => { localStorage.setItem('bp-transcript', transcript); }, [transcript]);
 
   // 채팅 자동 스크롤
   useEffect(() => {
@@ -279,7 +286,7 @@ export default function App() {
 
   // ── SSE 구독 (§6). busy 해제는 하지 않음 ──
   useEffect(() => {
-    const es = new EventSource('/events');
+    const es = new EventSource('/events?sid=' + encodeURIComponent(sessionId));
     const on = (type: string, fn: (d: any) => void) => {
       es.addEventListener(type, (ev: Event) => {
         const me = ev as MessageEvent;

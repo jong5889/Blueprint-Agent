@@ -23,23 +23,23 @@ const app = Fastify({ logger: { level: 'info' } });
 // ── in-memory job registry ──
 const jobs = new Map<string, Job>();
 
-/** Start an async job; broadcast its SSE event on completion. Returns the job id immediately. */
-function startJob(kind: JobKind, sseEvent: SseEvent, fn: () => Promise<unknown>): string {
+/** Start an async job; broadcast its SSE event (scoped to `sid`) on completion. Returns the job id. */
+function startJob(kind: JobKind, sseEvent: SseEvent, sid: string, fn: () => Promise<unknown>): string {
   const id = randomUUID();
   const job: Job = { id, kind, status: 'running' };
   jobs.set(id, job);
-  broadcast('job', { jobId: id, kind, status: 'running' });
+  broadcast('job', { jobId: id, kind, status: 'running' }, sid);
   (async () => {
     try {
       const result = await fn();
       job.result = result; job.status = 'done';
-      broadcast(sseEvent, result);
-      broadcast('job', { jobId: id, kind, status: 'done' });
+      broadcast(sseEvent, result, sid);
+      broadcast('job', { jobId: id, kind, status: 'done' }, sid);
     } catch (e: any) {
       job.status = 'error'; job.error = e?.message ?? String(e);
       app.log.error(e);
-      broadcast('error', { message: job.error });
-      broadcast('job', { jobId: id, kind, status: 'error' });
+      broadcast('error', { message: job.error }, sid);
+      broadcast('job', { jobId: id, kind, status: 'error' }, sid);
     }
   })();
   return id;
@@ -49,8 +49,9 @@ const accepted = (jobId: string) => ({ ok: true, jobId, status: 'running' as con
 function need<T extends object>(body: any, keys: (keyof T)[]): body is T {
   return body && typeof body === 'object' && keys.every(k => body[k] != null);
 }
+const sidOf = (req: { headers: Record<string, any> }): string => String(req.headers['x-session-id'] || '');
 
-// ── SSE ──
+// ── SSE (session-scoped via ?sid=) ──
 app.get('/events', (req, reply) => {
   reply.raw.writeHead(200, {
     'content-type': 'text/event-stream',
@@ -58,7 +59,7 @@ app.get('/events', (req, reply) => {
     connection: 'keep-alive',
   });
   reply.raw.write(': connected\n\n');
-  addClient(reply);
+  addClient(reply, String((req.query as any)?.sid || ''));
 });
 
 // ── reads ──
@@ -82,22 +83,22 @@ app.get('/fixture.html', async (req, reply) => {
 app.post('/capture', async (req, reply) => {
   if (!need<{ transcript: string }>(req.body, ['transcript'])) return reply.code(400).send({ error: 'transcript required' });
   const b = req.body as { transcript: string };
-  return reply.code(202).send(accepted(startJob('capture', 'brief', () => runCapture({ transcript: b.transcript }))));
+  return reply.code(202).send(accepted(startJob('capture', 'brief', sidOf(req), () => runCapture({ transcript: b.transcript }))));
 });
 app.post('/mockup', async (req, reply) => {
   if (!need<{ project: string; transcript: string }>(req.body, ['project', 'transcript'])) return reply.code(400).send({ error: 'project, transcript required' });
   const b = req.body as { project: string; transcript: string };
-  return reply.code(202).send(accepted(startJob('mockup', 'mockup', () => runMockup({ project: b.project, transcript: b.transcript }))));
+  return reply.code(202).send(accepted(startJob('mockup', 'mockup', sidOf(req), () => runMockup({ project: b.project, transcript: b.transcript }))));
 });
 app.post('/reverse', async (req, reply) => {
   if (!need<{ contract: unknown }>(req.body, ['contract'])) return reply.code(400).send({ error: 'contract required' });
   const b = req.body as { contract: any };
-  return reply.code(202).send(accepted(startJob('reverse', 'spec', () => runReverse({ contract: b.contract }))));
+  return reply.code(202).send(accepted(startJob('reverse', 'spec', sidOf(req), () => runReverse({ contract: b.contract }))));
 });
 app.post('/generate', async (req, reply) => {
   if (!need<{ specMd: string }>(req.body, ['specMd'])) return reply.code(400).send({ error: 'specMd required' });
   const b = req.body as { specMd: string };
-  return reply.code(202).send(accepted(startJob('generate', 'code', () => runGenerate({ specMd: b.specMd }))));
+  return reply.code(202).send(accepted(startJob('generate', 'code', sidOf(req), () => runGenerate({ specMd: b.specMd }))));
 });
 
 // ── freeze: SYNCHRONOUS, deterministic (C-1) ──
@@ -105,7 +106,7 @@ app.post('/freeze', async (req, reply) => {
   if (!need<{ webPath: string }>(req.body, ['webPath'])) return reply.code(400).send({ error: 'webPath required' });
   const b = req.body as { webPath: string };
   const contract = await freeze({ webPath: b.webPath });
-  broadcast('contract', { contract });
+  broadcast('contract', { contract }, sidOf(req));
   return { contract };
 });
 

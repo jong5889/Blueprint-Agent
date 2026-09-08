@@ -62,3 +62,15 @@
 **Context**: CONSTRUCTION 품질 패스 완료. 다음 단계(추가 기능) 준비됨.
 
 ---
+
+## Bug Fixes — 사용자 보고 4건
+**Timestamp**: 2026-09-08T08:30:00Z
+**User Input**: (1) 편집이 델타가 아니라 전체 재생성으로 보임 (2) 조작없이 버전 변경 (3) 새로고침시 대화 유실 (4) 목업 완성됐는데 요구사항/SRS 빈칸
+**AI Response**:
+- #1: 실측 결과 이미 델타 기반(F2). edit는 최신버전+델타만 반영(ids 유지 7/7, HTML 유사도 0.92). 버그 아님(옛 빌드 관찰로 추정). 설명 제공.
+- #2+#4 근본원인: SSE 전역 브로드캐스트(세션 무관) → 타 세션/테스트 잡이 iframe 강제전환·데이터 오염. FIX: SSE 세션 스코프(/events?sid=, 잡→sid 태그, sid별 전송). 검증: A만 수신 B무수신.
+- #3: transcript가 클라 state에만 존재 → 새로고침 리셋. FIX: localStorage 영속화(로드/세이브, 시드 1회). 검증: 새로고침 후 유지.
+- 게이트: tsc 0 · conformance 18/18(T10 SSE스코프 추가) · UI 종단(편집후 brief+spec+v2) PASS.
+**Context**: CONSTRUCTION 버그픽스 완료.
+
+---
