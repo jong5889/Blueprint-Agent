@@ -74,3 +74,11 @@
 **Context**: CONSTRUCTION 버그픽스 완료.
 
 ---
+
+## Requirements Re-scope (v2 — 단일 고객 모드)
+**Timestamp**: 2026-09-08T09:00:00Z
+**User Input**: "고객 모드에 보이는 항목만 남기고, 산출물은 html·requirements.md·constraints.md만. 개발자모드 제거. 전면 재검토." → Q4 단일 고객모드 동의, 나머지 diet, §5 방식 동일. → "확정 커밋 푸쉬"
+**AI Response**: requirements/{blueprint-agent-requirements.md, constraints.md, redev-screen-spec.yaml} v2 개정. 산출물 3종 한정(목업·requirements.md·constraints.md). reverse(SRS/ERD/OpenAPI)·code·개발자모드·계약노출 제거. freeze는 내부 엔진 유지(C-1/C-2 보존, 원칙3 강화). SSE 세션스코프·transcript 영속 반영. §5 개발방식 원문 보존.
+**Context**: 재-inception 트리거. 다음: jd 계약 동결 → 4슬라이스 재분해 → 플릿 하달(사용자 승인 대기).
+
+---
