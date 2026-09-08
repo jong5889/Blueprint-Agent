@@ -47,3 +47,29 @@
 
 ## Env gotcha (jd mac)
 `node` = Bun shim; use `export PATH=/opt/homebrew/bin:$PATH` for real Node v26. Workers unaffected (own node). Only jd needs Playwright chromium; workers use PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1, yudo skips npm install.
+
+---
+
+# 🔁 REV RE-INCEPTION (2026-09-08, rev 정본 f1eeff5)
+
+## Project Information
+- **Type**: Brownfield (v1 코드 존재 — 대폭 개편). 개발 방식: **로컬(플릿 미사용)**.
+- **정본**: requirements(rev) + constraints(C-1~C-6) + samsung-design-guidelines. redev-screen-spec.yaml 폐기, preview-sketch.html은 비정본.
+
+## Stage Progress (rev)
+### 🔵 INCEPTION
+- [x] Workspace Detection (brownfield)
+- [x] Requirements Analysis (rev = SSOT, 팀 작성; F 항목 해소: 플릿미사용·export=세트)
+- [x] Application Design (계약) — aidlc-docs/inception/application-design/application-design.md (rev)
+- [x] Units (로컬 U1~U8, 골든패스 우선)
+- [ ] **GATE: 설계·계약 승인 → 로컬 구현**
+
+### 🟢 CONSTRUCTION (rev, 로컬)
+- [ ] U1 기반(types/store계층/server) · U2 extract · U3 mockup+델타 · U4 contract+freeze+export
+- [ ] U5 coverage+게이트 · U6 re-import · U7 단일 콘솔 · U8 STT(후순위)
+- [ ] 골든패스 end-to-end + 스크린샷(§6 앵커 ★) · conformance(rev) 재작성
+
+## 핵심 계약 요약
+- 계층: 프로젝트>회의체>버전 · req⇄constraints 대칭 1급
+- export 세트: requirements.md·constraints.md·mockup.html·visual-contract.json·trace.json·manifest.json
+- 시각계약: export 시점 결정적 추출(C-1) · 커버리지 체크→휴먼게이트(C-5) · 목업 직접편집 금지(C-2)

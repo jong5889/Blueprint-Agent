@@ -82,3 +82,11 @@
 **Context**: 재-inception 트리거. 다음: jd 계약 동결 → 4슬라이스 재분해 → 플릿 하달(사용자 승인 대기).
 
 ---
+
+## Re-Inception (rev 정본) — 로컬 개발
+**Timestamp**: 2026-09-08T09:30:00Z
+**User Input**: "1. 플릿 미유지 2. 세트, 계약으로 확정. 새 요구를 정본으로 받아서 재 inception 진행."
+**AI Response**: rev 요구(f1eeff5)를 정본 채택. 재-inception: 브라운필드(v1 코드 존재), 개발은 로컬(플릿 미사용, §5 문서에서 제외됨). export=파일 세트로 jd가 계약 확정. 신규 아키텍처 설계: 프로젝트>회의체>버전, req⇄constraints 대칭, 커버리지 체크, export/re-import 왕복, 시각계약(결정적)은 export 시점. reverse/generate 제거.
+**Context**: INCEPTION(rev). 다음: 응용설계(계약) 승인 게이트 → 로컬 구현(골든패스 우선).
+
+---
