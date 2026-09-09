@@ -21,10 +21,11 @@ export interface Version {
   requirementsMd: string;
   constraintsMd: string;
   webPath: string;                  // /mockups/<file>.html
-  frozen?: boolean;
-  major?: number;
   usage?: { in: number; out: number };
 }
+
+// rev2: 진행 중 작업 영속(새로고침 복원, 개선 A/#7)
+export interface ActiveJob { id: string; kind: JobKind; status: 'running' | 'done' | 'error' }
 
 export interface Meeting {
   id: string;
@@ -35,12 +36,12 @@ export interface Meeting {
   draftConstraintsMd: string;
   currentVersion: number;           // 0 = 아직 없음
   versions: Version[];
+  activeJob?: ActiveJob | null;     // rev2: 진행 중이면 해당 작업, 아니면 null
 }
 
 export interface ProjectSummary {
   project: string;
   meetings: { id: string; title: string }[];
-  frozenMajors: { meeting: string; major: number; at: string }[];
 }
 
 // 시각 계약 (결정적, export 시점) — 목업 data-bp-* 에서 추출
@@ -53,20 +54,20 @@ export interface VisualContract {
   stateFlow: { action: string; from?: string; to?: string }[];
 }
 
-// export 세트 (§5) — schema 'bp-export/1'
+// export 세트 (§5, rev2) — schema 'bp-export/2' (버전 단위, freeze 제거, yaml 추가)
 export interface ExportManifest {
-  schema: 'bp-export/1';
+  schema: 'bp-export/2';
   project: string;
   meeting: string;
-  major: number;
-  frozenAt: string;
-  files: { requirements: string; constraints: string; mockup: string; contract: string; trace: string };
+  version: number;                  // rev2: major → 버전 단위
+  exportedAt: string;
+  files: { requirements: string; constraints: string; mockup: string; contract: string; contractYaml: string; trace: string };
   importantDecisions: { text: string; groundingIds: string[] }[];
 }
 export interface ExportTrace {
   utterances: Utterance[];
   decisions: CoverageResolution[];
-  lineage: { meeting: string; major: number; parents: number[] };
+  lineage: { meeting: string; version: number; parents: number[] };
 }
 
 // ── Jobs ──
@@ -92,7 +93,7 @@ export interface CoverageResult { missing: CoverageItem[] }
 export interface ContractInput { webPath: string }
 export interface ExportSetInput {
   dir: string;                       // store.exportDir 로 산출된 절대경로
-  project: string; meeting: string; major: number; frozenAt: string;
+  project: string; meeting: string; version: number; exportedAt: string;
   requirementsMd: string; constraintsMd: string; html: string;
   contract: VisualContract; trace: ExportTrace;
   importantDecisions: { text: string; groundingIds: string[] }[];

@@ -18,7 +18,7 @@ export async function readExportSet({ dir }: ReimportInput): Promise<ReimportRes
 
   return {
     project: manifest.project,
-    title: `${manifest.meeting} v${manifest.major}`,
+    title: `${manifest.meeting} v${manifest.version}`,
     requirementsMd,
     constraintsMd,
     decisions: trace.decisions,

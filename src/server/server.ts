@@ -26,10 +26,11 @@ const app = Fastify({ logger: { level: 'info' }, bodyLimit: 25 * 1024 * 1024 });
 app.addContentTypeParser(/^audio\//, { parseAs: 'buffer' }, (_req, body, done) => done(null, body));
 const jobs = new Map<string, Job>();
 
-function startJob(kind: JobKind, sseEvent: SseEvent, sid: string, fn: () => Promise<unknown>): string {
+function startJob(kind: JobKind, sseEvent: SseEvent, sid: string, meetingId: string, fn: () => Promise<unknown>): string {
   const id = randomUUID();
   const job: Job = { id, kind, status: 'running' };
   jobs.set(id, job);
+  store.setActiveJob(meetingId, { id, kind, status: 'running' }); // rev2 A/#7: 새로고침 복원용 영속
   broadcast('job', { jobId: id, kind, status: 'running' }, sid);
   (async () => {
     try {
@@ -42,6 +43,8 @@ function startJob(kind: JobKind, sseEvent: SseEvent, sid: string, fn: () => Prom
       app.log.error(e);
       broadcast('error', { message: job.error }, sid);
       broadcast('job', { jobId: id, kind, status: 'error' }, sid);
+    } finally {
+      store.setActiveJob(meetingId, null); // 완료·에러 시 진행상태 해제
     }
   })();
   return id;
@@ -90,7 +93,7 @@ app.post('/extract', async (req, reply) => {
   const id = (req.body as any).meetingId as string;
   const m = store.getMeeting(id);
   if (!m) return reply.code(404).send({ error: 'meeting not found' });
-  return reply.code(202).send(accepted(startJob('extract', 'extract', sidOf(req), async () => {
+  return reply.code(202).send(accepted(startJob('extract', 'extract', sidOf(req), id, async () => {
     const r = await runExtract({ transcript: m.transcript });
     store.setDraft(id, r.requirementsMd, r.constraintsMd);
     return r;
@@ -104,7 +107,7 @@ app.post('/mockup', async (req, reply) => {
   const m = store.getMeeting(id);
   if (!m) return reply.code(404).send({ error: 'meeting not found' });
   if (!m.draftRequirementsMd && !m.draftConstraintsMd) return reply.code(400).send({ error: '먼저 requirements를 추출하세요 (/extract)' });
-  return reply.code(202).send(accepted(startJob('mockup', 'mockup', sidOf(req), async () => {
+  return reply.code(202).send(accepted(startJob('mockup', 'mockup', sidOf(req), id, async () => {
     const prevV = store.latestVersion(id);
     let prior: { html: string; deltaLines: string } | undefined;
     let mode: 'create' | 'edit' = 'create';
@@ -132,7 +135,7 @@ app.post('/coverage', async (req, reply) => {
   const id = (req.body as any).meetingId as string;
   const m = store.getMeeting(id);
   if (!m) return reply.code(404).send({ error: 'meeting not found' });
-  return reply.code(202).send(accepted(startJob('coverage', 'coverage', sidOf(req), () =>
+  return reply.code(202).send(accepted(startJob('coverage', 'coverage', sidOf(req), id, () =>
     runCoverage({ transcript: m.transcript, requirementsMd: m.draftRequirementsMd, constraintsMd: m.draftConstraintsMd }))));
 });
 
@@ -154,36 +157,42 @@ app.post('/coverage/resolve', async (req, reply) => {
   return { requirementsMd: req_, constraintsMd: con };
 });
 
-// ── freeze (sync) ──
-app.post('/freeze', async (req, reply) => {
-  if (!has(req.body, ['meetingId', 'version'])) return reply.code(400).send({ error: 'meetingId, version required' });
-  const b = req.body as any;
-  return store.freezeVersion(b.meetingId, b.version);
-});
-
-// ── export (sync): 결정적 계약 추출 + 세트 조립 (§5) ──
+// ── export (sync, rev2): 버전 단위 확정. 결정적 계약 추출 + 세트 조립(yaml 포함) (§5·D·E) ──
 app.post('/export', async (req, reply) => {
-  if (!has(req.body, ['meetingId', 'major'])) return reply.code(400).send({ error: 'meetingId, major required' });
+  if (!has(req.body, ['meetingId', 'version'])) return reply.code(400).send({ error: 'meetingId, version required' });
   const b = req.body as any;
   const m = store.getMeeting(b.meetingId);
   if (!m) return reply.code(404).send({ error: 'meeting not found' });
-  const v = store.versionByMajor(b.meetingId, b.major);
-  if (!v) return reply.code(404).send({ error: 'frozen major not found' });
+  const v = store.getVersion(b.meetingId, b.version);
+  if (!v) return reply.code(404).send({ error: 'version not found' });
   const html = await fs.readFile(store.mockupFsPath(v.webPath), 'utf8');
   const contract = await extractContract({ webPath: v.webPath });
-  const frozenAt = v.createdAt;
   const trace: ExportTrace = {
     utterances: parseTranscript(v.transcriptSnapshot),
     decisions: [],
-    lineage: { meeting: b.meetingId, major: b.major, parents: v.parent != null ? [v.parent] : [] },
+    lineage: { meeting: b.meetingId, version: b.version, parents: v.parent != null ? [v.parent] : [] },
   };
-  const dir = store.exportDir(m.project, b.meetingId, b.major);
+  const dir = store.exportDir(m.project, b.meetingId, b.version);
   const manifest = await buildExportSet({
-    dir, project: m.project, meeting: b.meetingId, major: b.major, frozenAt,
+    dir, project: m.project, meeting: b.meetingId, version: b.version, exportedAt: new Date().toISOString(),
     requirementsMd: v.requirementsMd, constraintsMd: v.constraintsMd, html, contract, trace,
     importantDecisions: [],
   });
   return { manifest, dir };
+});
+
+// ── 버전 삭제 (rev2 H): export 이력 있으면 경고(409), ?force=1 로 강행 ──
+app.delete('/meetings/:id/versions/:n', async (req, reply) => {
+  const { id, n } = req.params as any;
+  const vn = Number(n);
+  const m = store.getMeeting(id);
+  if (!m) return reply.code(404).send({ error: 'meeting not found' });
+  if (!store.getVersion(id, vn)) return reply.code(404).send({ error: 'version not found' });
+  const force = String((req.query as any)?.force || '') === '1';
+  if (!force && store.hasExport(m.project, id, vn)) {
+    return reply.code(409).send({ error: 'exported', exported: true, message: `v${vn}은 export 이력이 있습니다. 그래도 삭제하려면 force=1.` });
+  }
+  return store.deleteVersion(id, vn);
 });
 
 // ── import (sync): export 세트 → 새 회의체 시드 (왕복, §3.7.3) ──
