@@ -25,7 +25,7 @@
   </b>
 </p>
 
-https://github.com/user-attachments/assets/9e16fe6e-cdd3-42d7-be4b-d69e5d98354a
+https://github.com/user-attachments/assets/fac5cd3d-2cfe-4644-a699-a80c8f0c85f7
 
 <img src="screenshots/hero-console.png" alt="Blueprint Agent 콘솔" width="860">
 
