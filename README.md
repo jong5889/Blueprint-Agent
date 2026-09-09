@@ -13,8 +13,13 @@
   <img src="https://img.shields.io/badge/React-61DAFB?logo=react&logoColor=black" alt="React">
   <img src="https://img.shields.io/badge/Fastify-000000?logo=fastify&logoColor=white" alt="Fastify">
   <img src="https://img.shields.io/badge/Powered%20by-Claude%20Opus-D97757?logo=anthropic&logoColor=white" alt="Powered by Claude">
-  <a href="https://raw.githubusercontent.com/jong5889/Blueprint-Agent/main/screenshots/demo-iteration.gif"><img src="https://img.shields.io/badge/%F0%9F%A5%9A-secret-lightgrey" alt="secret"></a>
 </p>
+
+<details>
+<summary><img src="https://img.shields.io/badge/%F0%9F%A5%9A-secret-lightgrey" alt="secret"></summary>
+<br>
+<img src="screenshots/demo-iteration.gif" alt="" width="420">
+</details>
 
 <p>
   <b>
