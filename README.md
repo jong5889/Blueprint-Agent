@@ -15,13 +15,6 @@
   <img src="https://img.shields.io/badge/Powered%20by-Claude%20Opus-D97757?logo=anthropic&logoColor=white" alt="Powered by Claude">
 </p>
 
-<details>
-<summary>&nbsp;</summary>
-
-https://github.com/user-attachments/assets/9e16fe6e-cdd3-42d7-be4b-d69e5d98354a
-
-</details>
-
 <p>
   <b>
   <a href="#골든패스-이-제품의-핵심-흐름">골든패스</a> ·
@@ -30,6 +23,8 @@ https://github.com/user-attachments/assets/9e16fe6e-cdd3-42d7-be4b-d69e5d98354a
   <a href="#사용-매뉴얼">사용법</a>
   </b>
 </p>
+
+https://github.com/user-attachments/assets/9e16fe6e-cdd3-42d7-be4b-d69e5d98354a
 
 <img src="screenshots/hero-console.png" alt="Blueprint Agent 콘솔" width="860">
 
