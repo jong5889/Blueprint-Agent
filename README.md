@@ -18,7 +18,9 @@
 <details>
 <summary>&nbsp;</summary>
 <br>
-<img src="screenshots/demo-iteration.gif" alt="" width="420">
+
+https://github.com/jong5889/Blueprint-Agent/raw/main/screenshots/demo.mp4
+
 </details>
 
 <p>
