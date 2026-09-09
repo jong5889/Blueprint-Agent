@@ -19,13 +19,18 @@
   <b>
   <a href="#골든패스-이-제품의-핵심-흐름">골든패스</a> ·
   <a href="#한-눈에-보는-아키텍처">아키텍처</a> ·
-  <a href="#데모">데모</a> ·
   <a href="#시작하기">시작하기</a> ·
   <a href="#사용-매뉴얼">사용법</a>
   </b>
 </p>
 
 <img src="screenshots/hero-console.png" alt="Blueprint Agent 콘솔" width="860">
+
+<br><br>
+
+<sub>🥚 <b>이스터에그</b> — 기능이랑 상관없는 그냥 재밌는 짤 (심심풀이)</sub><br>
+<img src="screenshots/demo-golden-path.gif" alt="재밌는 짤 1" width="300">
+<img src="screenshots/demo-iteration.gif" alt="재밌는 짤 2" width="300">
 
 </div>
 
@@ -147,21 +152,9 @@ npm start                 # :3000 하나에서 API + 빌드된 대시보드를 �
 5. **버전 선택 → Export(=확정)** — 만족한 버전을 버전 목록에서 골라 **Export**하면 그 버전이 확정본으로 산출된다(별도 freeze 단계 없음). 확정본 + 목업 + 시각 계약(JSON·YAML) + 근거 추적 메타를 파일 세트로 낸다. 이 세트는 다른 회의체에서 **re-import**(왕복)하거나, 하류 개발 사이클(SRS·HLD·LLD·ADR·코드)의 입력으로 태울 수 있다.
 6. **버전 정리** — 원치 않게 생긴 버전은 버전 목록에서 **우클릭 → 삭제**한다. 해당 버전에 export 이력이 있으면 경고가 뜨고, **"그래도 삭제"** 재확인한 경우에만 삭제된다.
 
-### 데모
-
-<p align="center">
-  <img src="screenshots/demo-golden-path.gif" alt="골든패스 데모" width="820"><br>
-  <sub><b>골든패스</b> — 대화 입력 → 추출 → 목업 publish → 누락 체크 → Export</sub>
-</p>
-
-<p align="center">
-  <img src="screenshots/demo-iteration.gif" alt="피드백 이터레이션 데모" width="820"><br>
-  <sub><b>피드백 이터레이션</b> — 대화로 요구·제약을 고도화하고 목업 republish</sub>
-</p>
-
 ### 스크린샷
 
-정적 실행 화면 캡처는 `screenshots/`에 있다. 없으면 위 URL로 직접 확인한다.
+실행 화면 캡처는 `screenshots/`에 있다. 없으면 위 URL로 직접 확인한다.
 
 ### 트러블슈팅
 
