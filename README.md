@@ -205,7 +205,11 @@ Blueprint Agent의 export가 하류를 실제로 태울 수 있음을 보인 end
 - **오해가 회의에서 소진된 흔적**이 export에 남아 있다 — 목업 v1의 "조회 날짜 시각화 부족", v2의 "비율이 안 보임 → rawdata+판정 병기", "숫자 대신 레이더 차트", "축별 상태색", "표/차트 전체 일괄 전환" 요구가 전부 `[근거: u-006·u-012·u-013·u-014·u-019]`로 확정본에 반영됐다.
 - 결과 레포: **[sinsa902/fdc_dashboard](https://github.com/sinsa902/fdc_dashboard)** — Blueprint Agent export(`require/`) + AI-DLC 산출물(`aidlc-docs/`) + 실행 가능한 MVP(`index.html`)가 한 레포에 함께 보존됐다.
 
-**결과물 — 표 보기 / 차트 보기 (우상단 버튼으로 전체 카드 일괄 전환)**
+**① export 시점 목업 시각 계약** — `visual-contract.yaml`의 컴포넌트(`c-*`, 점선)·액션(`a-*`, 빨강)·바인딩을 좌표(1440×900) 그대로 렌더한 와이어프레임. 하류로 나가는 것은 목업 원본이 아니라 이 기하·구조 계약이다.
+
+<p><img src="screenshots/fdc-case-contract.png" alt="FDC 시각 계약 와이어프레임 — 컴포넌트/액션 box 좌표" width="90%"></p>
+
+**② AI-DLC 산출물 — 표 보기 / 차트 보기 (우상단 버튼으로 전체 카드 일괄 전환)**
 
 <p>
   <img src="screenshots/fdc-case-table.png" alt="FDC 대시보드 표 보기 — 설비별 Raw·Spec·Δ%·상태" width="49%">
