@@ -1,13 +1,14 @@
 // SLICE OWNER: S-C — 단일 통합 콘솔(모드 분리 없음).
-// 계약: application-design.md(rev) §3(API)·§4(SSE)·골든패스, requirements(rev) §3.9, samsung-design-guidelines.
-// 골든패스: 대화 → /extract → /mockup → (/coverage→휴먼게이트→델타)⟳ → /freeze → /export.
+// 계약: application-design.md(rev+rev2 델타) §3(API)·§4(SSE)·골든패스, requirements/improvements-rev2 A~H, samsung-design-guidelines.
+// 골든패스(rev2): 대화 → /extract → /mockup → (/coverage→휴먼게이트→델타)⟳ → 버전 선택 → /export.
 import React, { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-// ── 최소 API 타입 (shared/types.ts 계약의 사용분) ──
-interface Version { n: number; createdAt: string; mode: 'create' | 'edit'; parent?: number; webPath: string; frozen?: boolean; major?: number }
-interface Meeting { id: string; project: string; title: string; transcript: string; draftRequirementsMd: string; draftConstraintsMd: string; currentVersion: number; versions: Version[] }
+// ── 최소 API 타입 (shared/types.ts 계약의 사용분, rev2) ──
+interface Version { n: number; createdAt: string; mode: 'create' | 'edit'; parent?: number; transcriptSnapshot: string; groundingIds: string[]; requirementsMd: string; constraintsMd: string; webPath: string }
+interface ActiveJob { id: string; kind: string; status: 'running' | 'done' | 'error' }
+interface Meeting { id: string; project: string; title: string; transcript: string; draftRequirementsMd: string; draftConstraintsMd: string; currentVersion: number; versions: Version[]; activeJob?: ActiveJob | null }
 interface ProjectSummary { project: string; meetings: { id: string; title: string }[] }
 interface CoverageItem { text: string; groundingIds: string[] }
 type Action = 'adopt-req' | 'adopt-constraint' | 'exclude';
@@ -34,19 +35,19 @@ const SAMPLES: { title: string; transcript: string }[] = [
   {
     title: '태스크 상세 화면 킥오프',
     transcript: [
-      '기획자: 태스크 상세 화면이 필요해요. 제목, 담당자, 마감일, 상태를 보여주고요.',
-      'PO: 상태는 드롭다운으로 바꾸게 하고, 댓글도 달 수 있어야 해요.',
-      '개발자: 첨부파일은요?',
-      'PO: 이번 버전엔 없어도 됩니다. 나중에.',
+      '이종덕: 태스크 상세 화면이 필요해요. 제목, 담당자, 마감일, 상태를 보여주고요.',
+      '변규백: 상태는 드롭다운으로 바꾸게 하고, 댓글도 달 수 있어야 해요.',
+      '박유도: 첨부파일은요?',
+      '변규백: 이번 버전엔 없어도 됩니다. 나중에.',
     ].join('\n'),
   },
   {
     title: '알림 설정 화면 논의',
     transcript: [
-      '기획자: 사용자별 알림 설정 화면을 만들죠. 이메일/푸시 토글이 필요해요.',
-      '개발자: 알림 종류는 몇 개인가요?',
-      '기획자: 댓글, 멘션, 마감임박 세 가지요.',
-      'PO: 야간 방해금지 시간대 설정도 있으면 좋겠네요.',
+      '박민구: 사용자별 알림 설정 화면을 만들죠. 이메일/푸시 토글이 필요해요.',
+      '박수만: 알림 종류는 몇 개인가요?',
+      '박민구: 댓글, 멘션, 마감임박 세 가지요.',
+      '이종덕: 야간 방해금지 시간대 설정도 있으면 좋겠네요.',
     ].join('\n'),
   },
 ];
@@ -63,6 +64,7 @@ export default function App() {
   const [con, setCon] = useState('');
   const [mockup, setMockup] = useState<{ webPath: string; version: number; mode: string } | null>(null);
   const [latestVersion, setLatestVersion] = useState<number>(0);
+  const [selectedVersion, setSelectedVersion] = useState<number | null>(null); // rev2 B: 현재 로드된 버전(null=draft)
   const [missing, setMissing] = useState<CoverageItem[]>([]);
   const [resolutions, setResolutions] = useState<Record<number, Action | ''>>({});
   const [coverageRan, setCoverageRan] = useState(false);
@@ -71,7 +73,7 @@ export default function App() {
   const [step, setStep] = useState<{ kind: string; status: string } | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [major, setMajor] = useState<number | null>(null);
+  const [ctx, setCtx] = useState<{ n: number; x: number; y: number } | null>(null); // rev2 H: 버전 우클릭 삭제 메뉴
   const [recording, setRecording] = useState(false);          // STT 얇은 어댑터(§4)
   const micRef = useRef<MediaRecorder | null>(null);
 
@@ -102,21 +104,55 @@ export default function App() {
     } catch (e: any) { setError(String(e?.message ?? e)); }
   }
 
+  // rev2 B: 특정 버전(또는 draft)의 req·con·목업을 함께 로드 — 최신 draft만 보이던 문제 제거.
+  function loadVersion(m: Meeting, n: number | null) {
+    const v = n != null ? m.versions?.find(x => x.n === n) : undefined;
+    if (v) {
+      setReq(v.requirementsMd ?? ''); setCon(v.constraintsMd ?? '');
+      setMockup({ webPath: v.webPath, version: v.n, mode: v.mode }); setSelectedVersion(v.n);
+    } else {
+      setReq(m.draftRequirementsMd ?? ''); setCon(m.draftConstraintsMd ?? '');
+      setMockup(null); setSelectedVersion(null);
+    }
+  }
+
   function applyMeeting(m: Meeting) {
     setMeeting(m); localStorage.setItem(MKEY, m.id);
     const localT = loadTranscripts()[m.id];
     setTranscript(localT ?? m.transcript ?? '');           // 로컬 영속 우선(새로고침 유지)
-    setReq(m.draftRequirementsMd ?? ''); setCon(m.draftConstraintsMd ?? '');
     const latest = m.versions?.[m.versions.length - 1];
     setLatestVersion(latest?.n ?? m.currentVersion ?? 0);
-    setMockup(latest ? { webPath: latest.webPath, version: latest.n, mode: latest.mode } : null);
-    const frozen = m.versions?.find(v => v.frozen)?.major;
-    setMajor(frozen ?? null);
+    loadVersion(m, latest?.n ?? null);                     // rev2 B: 최신 버전 세트 로드
     setMissing([]); setResolutions({}); setCoverageRan(false); setError(''); setNotice('');
-    setView('requirements');
+    setView(latest ? 'mockup' : 'requirements');
+    if (m.activeJob && m.activeJob.status === 'running') resumeJob(m.id, m.activeJob); // rev2 A/#7: 진행상태 복원
   }
 
-  async function refreshMeeting() { if (meeting) { const m: Meeting = await fetch('/meetings/' + meeting.id).then(r => r.json()); setMeeting(m); const latest = m.versions?.[m.versions.length - 1]; if (latest) setLatestVersion(latest.n); } }
+  // rev2: 회의체 재조회(어느 흐름에서든 최신 상태 확보). meeting closure 대신 명시 id 사용.
+  async function reloadMeeting(id: string): Promise<Meeting | null> {
+    try {
+      const m: Meeting = await fetch('/meetings/' + id).then(r => { if (!r.ok) throw new Error('reload'); return r.json(); });
+      setMeeting(m); const latest = m.versions?.[m.versions.length - 1]; setLatestVersion(latest?.n ?? m.currentVersion ?? 0);
+      return m;
+    } catch { return null; }
+  }
+
+  // rev2 A/#7: 새로고침/로드 시 진행 중이던 job 을 이어서 폴링·복원. job 맵은 in-memory 라 서버 재시작 시 404 → activeJob 소멸로 판정.
+  async function resumeJob(meetingId: string, job: ActiveJob) {
+    setBusy(job.kind); setStep({ kind: job.kind, status: 'running' }); setNotice('진행 중이던 작업을 복원했습니다…');
+    try {
+      for (let i = 0; i < 150; i++) {
+        await sleep(2000);
+        const jr = await fetch('/jobs/' + job.id);
+        if (jr.ok) { const j = await jr.json(); if (j.status === 'done') break; if (j.status === 'error') throw new Error(j.error || '작업 실패'); continue; }
+        const mm: Meeting = await fetch('/meetings/' + meetingId).then(r => r.json());  // job 소멸 → activeJob 로 판정
+        if (!mm.activeJob) break;
+      }
+      const m = await reloadMeeting(meetingId);
+      if (m) { const latest = m.versions?.[m.versions.length - 1]; loadVersion(m, latest?.n ?? null); setView(latest ? 'mockup' : 'requirements'); setNotice('작업이 완료되었습니다.'); }
+    } catch (e: any) { setError(String(e?.message ?? e)); }
+    finally { setBusy(null); }
+  }
 
   async function createMeeting() {
     if (!npProject.trim() || !npTitle.trim()) { setError('프로젝트명과 회의체 제목을 입력하세요.'); return; }
@@ -198,9 +234,9 @@ export default function App() {
       setReq(ex.requirementsMd ?? ''); setCon(ex.constraintsMd ?? ''); setView('requirements');
       setBusy('mockup');
       const mk = await runAsync('/mockup', { meetingId: meeting.id });
-      setMockup({ webPath: mk.webPath, version: mk.version, mode: mk.mode }); setLatestVersion(mk.version);
+      const m = await reloadMeeting(meeting.id);          // rev2 B: 새 버전 세트(req·con·목업)를 함께 로드
+      if (m) loadVersion(m, mk.version);
       setView('mockup'); setNotice(`목업 v${mk.version} 생성 (${mk.mode === 'edit' ? '델타 수정' : '신규'})`);
-      await refreshMeeting();
     } catch (e: any) { setError(String(e?.message ?? e)); }
     finally { setBusy(null); }                    // gotcha: busy 해제는 호출부 finally
   }
@@ -229,21 +265,33 @@ export default function App() {
     finally { setBusy(null); }
   }
 
-  async function freeze() {
-    if (!meeting || !latestVersion) { setError('먼저 목업을 생성하세요.'); return; }
-    setError(''); setBusy('freeze');
-    try { const d = await postJson('/freeze', { meetingId: meeting.id, version: latestVersion }); setMajor(d.major ?? null); await refreshMeeting(); setNotice(`v${latestVersion} → major ${d.major} 고정`); }
+  // rev2 D: Freeze 제거. 선택 버전(없으면 최신)을 Export = 확정.
+  async function doExport() {
+    if (!meeting) return;
+    const ver = selectedVersion ?? latestVersion;
+    if (!ver) { setError('먼저 목업을 생성하세요.'); return; }
+    setError(''); setNotice(''); setBusy('export');
+    try { const d = await postJson('/export', { meetingId: meeting.id, version: ver }); setNotice(`v${ver} Export 완료 → ${d.dir ?? '세트 기록됨'}`); }
     catch (e: any) { setError(String(e?.message ?? e)); }
     finally { setBusy(null); }
   }
 
-  async function doExport() {
+  // rev2 H: 버전 삭제 + export 이력 방어(409 → 재확인 후 force=1).
+  async function deleteVersion(n: number, force = false) {
     if (!meeting) return;
-    if (major == null) { setError('먼저 Freeze로 major 버전을 만드세요.'); return; }
-    setError(''); setBusy('export');
-    try { const d = await postJson('/export', { meetingId: meeting.id, major }); setNotice(`Export 완료 → ${d.dir ?? '세트 기록됨'}`); }
-    catch (e: any) { setError(String(e?.message ?? e)); }
-    finally { setBusy(null); }
+    setCtx(null); setError('');
+    try {
+      const r = await fetch(`/meetings/${meeting.id}/versions/${n}${force ? '?force=1' : ''}`, { method: 'DELETE' });
+      if (r.status === 409) {
+        const d = await r.json().catch(() => ({} as any));
+        if (window.confirm((d.message || `v${n}은 export 이력이 있습니다.`) + '\n그래도 삭제하시겠습니까?')) return deleteVersion(n, true);
+        return;
+      }
+      if (!r.ok) { const e = await r.json().catch(() => ({} as any)); throw new Error(e.error || `HTTP ${r.status}`); }
+      const m = await reloadMeeting(meeting.id);
+      if (m) { const latest = m.versions?.[m.versions.length - 1]; loadVersion(m, latest?.n ?? null); }
+      setNotice(`v${n} 삭제됨`);
+    } catch (e: any) { setError(String(e?.message ?? e)); }
   }
 
   // iframe onLoad: 같은-오리진이면 keydown 을 부모로 포워딩(iframe 키 삼킴 방지, 부록 D).
@@ -259,9 +307,19 @@ export default function App() {
   const chips: { k: string; label: string; done: boolean }[] = [
     { k: 'extract', label: '① 대화 정리', done: !!(req || con) },
     { k: 'mockup', label: '② 목업 생성', done: !!mockup },
-    { k: 'coverage', label: '③ 확인·고도화', done: !!major },
+    { k: 'coverage', label: '③ 확인·고도화', done: coverageRan },
   ];
   const allMeetings = projects.flatMap(p => p.meetings.map(mm => ({ ...mm, project: p.project })));
+
+  // rev2 G/C: 발언 파싱 + id→실명 맵 + 버전별 근거 경계 위치(스냅샷 발언 수).
+  const lines = parseLines(transcript);
+  const idToName = new Map(lines.map(l => [l.id, l.who]));
+  const vbounds = new Map<number, number[]>();            // 발언 수 → 그 지점을 경계로 삼은 버전들
+  (meeting?.versions ?? []).forEach(v => {
+    const c = parseLines(v.transcriptSnapshot || '').length;
+    if (c > 0 && c <= lines.length) { const arr = vbounds.get(c) ?? []; arr.push(v.n); vbounds.set(c, arr); }
+  });
+  const busyLabel = (k: string) => ({ extract: '대화 정리', mockup: '목업 생성', coverage: '누락 체크', export: 'Export' } as Record<string, string>)[k] ?? '작업';
 
   return (
     <div className="h-screen flex flex-col gap-2 p-3 bg-[#F4F4F6] text-[#111111] text-sm" style={{ fontFamily: "'SamsungOne', -apple-system, 'Segoe UI', Roboto, sans-serif" }}>
@@ -290,6 +348,7 @@ export default function App() {
           <input aria-label="프로젝트명" value={npProject} onChange={e => setNpProject(e.target.value)} placeholder="프로젝트명" className="border border-[#E0E0E5] rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-[#1428A0]" />
           <input aria-label="회의체 제목" value={npTitle} onChange={e => setNpTitle(e.target.value)} placeholder="회의체 제목" className="border border-[#E0E0E5] rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-[#1428A0]" />
           <button onClick={createMeeting} className={`${btn} bg-[#1428A0] text-white`}>생성</button>
+          <button onClick={() => { setShowNew(false); setNpProject(''); setNpTitle(''); setError(''); }} className={`${btn} border border-[#E0E0E5] text-[#707078] bg-white`}>취소</button>
         </div>
       )}
 
@@ -297,10 +356,8 @@ export default function App() {
       <div className="shrink-0 flex flex-wrap items-center gap-2">
         <button onClick={generate} disabled={!!busy || !meeting} className={`${btn} bg-[#1428A0] text-white`}>🪄 생성 (정리·목업)</button>
         <button onClick={checkCoverage} disabled={!!busy || !meeting} className={`${btn} border border-[#1428A0] text-[#1428A0] bg-white`}>✅ 누락 체크</button>
-        <button onClick={freeze} disabled={!!busy || !meeting} className={`${btn} ${major != null ? 'bg-[#00C853] text-white' : 'border border-[#E0E0E5] text-[#111111] bg-white'}`}>❄ Freeze</button>
-        <button onClick={doExport} disabled={!!busy || !meeting} className={`${btn} border border-[#1428A0] text-[#1428A0] bg-white`}>⬇ Export</button>
-        {busy && <span className="text-[11px] text-[#707078]">처리 중… {step ? `(${step.kind}:${step.status})` : ''}</span>}
-        {major != null && <span className="text-[11px] rounded-full px-2 py-0.5 bg-[#00C853] text-white">major {major} frozen</span>}
+        <button onClick={doExport} disabled={!!busy || !meeting || !(selectedVersion ?? latestVersion)} className={`${btn} bg-[#1428A0] text-white`}>⬇ Export{(selectedVersion ?? latestVersion) ? ` v${selectedVersion ?? latestVersion}` : ''}</button>
+        {busy && <span className="text-[11px] text-[#707078]">{busyLabel(busy)} 처리 중… {step ? `(${step.kind}:${step.status})` : ''}</span>}
       </div>
 
       {/* 상태 배너 */}
@@ -318,13 +375,22 @@ export default function App() {
           <div className="flex-1 overflow-auto rounded-xl border border-[#E0E0E5] bg-[#FBFBFC] p-3 min-h-0">
             {!transcript.trim()
               ? <p className="text-xs text-[#707078]">회의 대화를 입력하거나 상단의 예시(1/2)를 불러오세요.</p>
-              : parseLines(transcript).map(u => {
+              : lines.map((u, i) => {
                 const mine = u.who === '사용자';
+                const bound = vbounds.get(i + 1);          // rev2 C: (i+1)번째 발언 뒤 = 어떤 버전의 근거 경계
                 return (
-                  <div key={u.id} className={`flex flex-col ${mine ? 'items-end' : 'items-start'} mb-2`}>
-                    <span className="text-[10px] text-[#707078]">{u.who || '발언'} · {u.id}</span>
-                    <div className={`max-w-[85%] rounded-xl px-3 py-1.5 ${mine ? 'bg-[#1428A0] text-white' : 'bg-[#F4F4F6] text-[#111111]'}`}>{u.text}</div>
-                  </div>
+                  <React.Fragment key={u.id}>
+                    <div className={`flex flex-col ${mine ? 'items-end' : 'items-start'} mb-2`}>
+                      {/* rev2 G: 실명 크게 + u-NNN 작게 병기 */}
+                      <span className="text-xs"><b className="text-[#111111]">{u.who || '발언'}</b> <span className="text-[10px] text-[#707078]">{u.id}</span></span>
+                      <div className={`max-w-[85%] rounded-xl px-3 py-1.5 ${mine ? 'bg-[#1428A0] text-white' : 'bg-[#F4F4F6] text-[#111111]'}`}>{u.text}</div>
+                    </div>
+                    {bound && (
+                      <div className="flex items-center gap-2 my-2 text-[10px] text-[#1428A0]" aria-label={`${bound.map(n => 'v' + n).join(',')} 근거 경계`}>
+                        <span className="flex-1 h-px bg-[#1428A0]/40" />── {bound.map(n => 'v' + n).join(', ')} 근거 경계 ──<span className="flex-1 h-px bg-[#1428A0]/40" />
+                      </div>
+                    )}
+                  </React.Fragment>
                 );
               })}
           </div>
@@ -338,7 +404,14 @@ export default function App() {
         </aside>
 
         {/* 우: 뷰 전환 */}
-        <main className="flex-1 flex flex-col bg-white rounded-2xl border border-[#E0E0E5] min-h-0">
+        <main className="relative flex-1 flex flex-col bg-white rounded-2xl border border-[#E0E0E5] min-h-0">
+          {/* rev2 A: 생성/작업 중 명확한 오버레이 + 스피너 (버튼은 disabled) */}
+          {busy && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-white/70 backdrop-blur-sm rounded-2xl" role="status" aria-live="polite">
+              <div className="h-9 w-9 rounded-full border-2 border-[#1428A0] border-t-transparent animate-spin" />
+              <div className="text-xs font-medium text-[#1428A0]">{busyLabel(busy)} 처리 중…{step ? ` (${step.kind}:${step.status})` : ''}</div>
+            </div>
+          )}
           <div className="shrink-0 flex flex-wrap gap-2 p-3 border-b border-[#E0E0E5]">
             {([['requirements', '📋 requirements'], ['constraints', '🚫 constraints'], ['mockup', '🖼 목업'], ['coverage', '✅ 누락 체크']] as [View, string][]).map(([k, label]) => (
               <button key={k} onClick={() => setView(k)} className={`rounded-full px-4 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-[#1428A0] ${view === k ? 'bg-[#1428A0] text-white' : 'bg-[#F4F4F6] text-[#111111] hover:bg-[#E0E0E5]'}`}>{label}</button>
@@ -347,9 +420,10 @@ export default function App() {
               <div className="ml-auto flex items-center gap-1 flex-wrap">
                 <span className="text-[10px] text-[#707078]">버전:</span>
                 {meeting.versions.map(v => (
-                  <button key={v.n} onClick={() => { setMockup({ webPath: v.webPath, version: v.n, mode: v.mode }); setView('mockup'); }}
-                    className={`text-[10px] rounded-full px-2 py-0.5 border focus:outline-none focus:ring-2 focus:ring-[#1428A0] ${v.frozen ? 'bg-[#00C853] text-white border-[#00C853]' : mockup?.version === v.n ? 'bg-[#1428A0] text-white border-[#1428A0]' : 'bg-white text-[#707078] border-[#E0E0E5]'}`}
-                    aria-label={`버전 ${v.n}${v.frozen ? ' major' : ''}`}>v{v.n}{v.frozen ? `·M${v.major}` : ''}</button>
+                  <button key={v.n} onClick={() => { loadVersion(meeting, v.n); setView('mockup'); }}
+                    onContextMenu={e => { e.preventDefault(); setCtx({ n: v.n, x: e.clientX, y: e.clientY }); }}
+                    className={`text-[10px] rounded-full px-2 py-0.5 border focus:outline-none focus:ring-2 focus:ring-[#1428A0] ${selectedVersion === v.n ? 'bg-[#1428A0] text-white border-[#1428A0]' : 'bg-white text-[#707078] border-[#E0E0E5]'}`}
+                    title="클릭: 이 버전 로드 · 우클릭: 삭제" aria-label={`버전 ${v.n} (클릭 로드, 우클릭 삭제)`}>v{v.n}</button>
                 ))}
               </div>
             )}
@@ -377,7 +451,10 @@ export default function App() {
                       {missing.map((it, i) => (
                         <div key={i} className="rounded-xl border border-[#E0E0E5] bg-white px-4 py-3">
                           <div className="font-medium">{it.text}</div>
-                          <div className="text-[10px] text-[#707078] mt-0.5">근거 {it.groundingIds.join(', ') || '—'}</div>
+                          {/* rev2 G: 근거 태그도 실명 크게 + u-NNN 작게 */}
+                          <div className="text-[10px] text-[#707078] mt-0.5">근거 {it.groundingIds.length
+                            ? it.groundingIds.map((gid, k) => <span key={gid}>{k > 0 ? ', ' : ''}<b className="text-[#111111]">{idToName.get(gid) || '발언'}</b> {gid}</span>)
+                            : '—'}</div>
                           <div className="flex gap-2 mt-2 flex-wrap">
                             {([['adopt-req', '채택 → 요구'], ['adopt-constraint', '채택 → 제약'], ['exclude', '의도적 제외']] as [Action, string][]).map(([a, label]) => (
                               <label key={a} className={`text-xs rounded-full px-3 py-1 border cursor-pointer focus-within:ring-2 focus-within:ring-[#1428A0] ${resolutions[i] === a ? 'bg-[#1428A0] text-white border-[#1428A0]' : 'bg-white text-[#111111] border-[#E0E0E5]'}`}>
@@ -394,6 +471,16 @@ export default function App() {
           </div>
         </main>
       </div>
+
+      {/* rev2 H: 버전 우클릭 삭제 메뉴 */}
+      {ctx && (
+        <>
+          <div className="fixed inset-0 z-20" onClick={() => setCtx(null)} onContextMenu={e => { e.preventDefault(); setCtx(null); }} />
+          <div className="fixed z-30 rounded-xl border border-[#E0E0E5] bg-white shadow-lg py-1 text-xs" style={{ top: ctx.y, left: ctx.x }} role="menu">
+            <button onClick={() => deleteVersion(ctx.n)} className="block w-full text-left px-4 py-1.5 text-[#E53935] hover:bg-[#FDECEA] focus:outline-none focus:ring-2 focus:ring-[#1428A0]" role="menuitem">🗑 v{ctx.n} 삭제</button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -11,7 +11,7 @@ AI-DLC는 구조화된 요구·제약을 하류로 내려보내 개발을 진행
 ```
 회의 대화 입력  →  requirements·constraints 추출  →  목업(HTML) publish  →  누락 체크(채택/제외)
                                                                                     │
-                          export ◀── freeze(major 고정) ◀────── 피드백 이터레이션(대화로 고도화·republish)
+                      버전 선택 → Export(=확정)  ◀────── 피드백 이터레이션(대화로 고도화·republish)
 ```
 
 - **원천은 requirements·constraints이고, 목업은 그로부터 나온 파생 뷰다.** 피드백은 목업을 직접 편집하는 게 아니라 대화·요청으로 들어와 요구·제약을 고치고, 목업은 거기서 다시 렌더된다.
@@ -24,7 +24,7 @@ AI-DLC는 구조화된 요구·제약을 하류로 내려보내 개발을 진행
 ```
 프로젝트 (영속)
  └─ 회의체 (하나의 토론 단위; 여러 번 이터레이션)
-     └─ 버전 (피드백 루프마다 생성, freeze하면 major)
+     └─ 버전 (피드백 루프마다 생성; 임의 버전을 골라 Export=확정)
 ```
 
 **모듈 맵**
@@ -38,20 +38,21 @@ Blueprint-Agent/
     prompts/   extract·mockup·coverage 시스템 프롬프트
   dashboard/   React + TS + Tailwind — 단일 통합 콘솔(모드 분리 없음)
   fixtures/    seed-transcripts/ 예시 회의 녹취 · fixture.html 초기 프리뷰 화면
-  data/        (런타임) projects/…/versions/… · exports/…/v<major>/
+  data/        (런타임) projects/…/versions/… · exports/…/v<n>/
   aidlc-docs/  이 제품 자체를 AI-DLC로 만든 산출물(정본은 requirements/)
 ```
 
 - **모델 쓰는 단계**(extract·mockup·coverage)는 비동기 — `POST → 202(jobId) → GET /jobs/:id` 폴링 + SSE 스트리밍.
-- **결정적 단계**(freeze·시각 계약 추출·export·import)는 동기로 즉시 응답. 계약 추출은 Playwright로 목업의 기하·구조만 읽는다 — **같은 목업이면 언제나 같은 계약**(모델 비용 0).
+- **결정적 단계**(시각 계약 추출·export·import)는 동기로 즉시 응답. 계약 추출은 Playwright로 목업의 기하·구조만 읽는다 — **같은 목업이면 언제나 같은 계약**(모델 비용 0).
 
-**export 세트** (freeze된 major마다 `data/exports/<project>/<meeting>/v<major>/`)
+**export 세트** (Export한 버전마다 `data/exports/<project>/<meeting>/v<n>/`)
 
 | 파일 | 내용 |
 |---|---|
 | `requirements.md` / `constraints.md` | 확정본 (항목별 `[근거: u-NNN]`) |
 | `mockup.html` | 확정 목업 |
-| `visual-contract.json` | 목업에서 결정적 추출한 시각 계약 |
+| `visual-contract.json` | 목업에서 결정적 추출한 시각 계약 (기계 판독) |
+| `visual-contract.yaml` | 위와 동일 내용의 시각 계약 (사람 판독 편의) |
 | `trace.json` | 근거 추적 정본(발언·항목·결정·계보) |
 | `manifest.json` | re-import 왕복의 최소 정보(중요 의결사항 + 근거) |
 
@@ -110,12 +111,12 @@ npm start                 # :3000 하나에서 API + 빌드된 대시보드를 �
 
 단일 콘솔에서 골든패스를 그대로 돈다. 좌측은 회의 대화(채팅), 우측은 산출물(요구·제약 문서 / 목업 프리뷰)이다.
 
-1. **대화 입력** — 좌측 패널에 회의 녹취를 붙여넣는다. `발언자: 내용` 형식을 쓰면 발언자별로 구분되고, 라벨 없는 줄도 하나의 발언으로 들어간다. 예시는 `fixtures/seed-transcripts/`의 3개 도메인 녹취(태스크 상세 · 주문 상세 · 진료 예약)를 그대로 붙여 쓰면 된다.
-2. **생성** — requirements·constraints를 추출하고(`extract`) 목업을 publish한다(`mockup`). 상단에 진행 상태가 실시간 표시된다. 완료되면 우측에 요구·제약 문서와 목업 프리뷰가 뜬다. 각 항목에는 `[근거: u-NNN]` 태그가 붙어 어느 발언에서 나왔는지 역추적된다.
+1. **대화 입력** — 좌측 패널에 회의 녹취를 붙여넣는다. `발언자: 내용` 형식을 쓰면 발언자별로 구분되고, 라벨 없는 줄도 하나의 발언으로 들어간다. 예시는 `fixtures/seed-transcripts/`의 3개 도메인 녹취(태스크 상세 · 주문 상세 · 진료 예약)를 그대로 붙여 쓰면 된다. 발언자는 실명(이종덕·변규백·박유도·박민구·박수만)으로 되어 있어 실제 회의처럼 읽힌다.
+2. **생성** — requirements·constraints를 추출하고(`extract`) 목업을 publish한다(`mockup`). 생성 중에는 상단에 진행 상태가 실시간 표시되고 실행 버튼이 비활성화된다. **생성 중 새로고침해도 진행 상태가 그대로 복원된다**(작업 상태는 서버에 회의체 단위로 영속). 완료되면 우측에 요구·제약 문서와 목업 프리뷰가 뜬다. 각 항목에는 `[근거: u-NNN]` 태그가 붙어 어느 발언에서 나왔는지 역추적된다. 채팅·근거 태그에서 발언자 실명이 크게, `u-NNN`이 작게 병기된다.
 3. **누락 체크(coverage)** — 대화 전체 대비 현재 요구·제약을 대조해 "요청됐으나 반영 안 된 항목"을 체크리스트로 flag한다. 각 항목을 사람이 **채택**(요구/제약으로 편입) 또는 **의도적 제외**(제외 결정 자체가 하나의 constraint가 됨) 중 하나로 처리한다. 자동 추가는 하지 않는다 — 요청은 반영처 없이 사라지지 않는다.
-4. **피드백 이터레이션** — 목업을 본 사람들의 피드백을 다시 대화로 추가하면, 근거 델타 기반으로 요구·제약을 고도화(develop)하고 목업을 republish한다. 만족할 때까지 반복.
-5. **freeze** — 만족한 버전을 major 버전으로 고정한다.
-6. **export** — 확정본 + 목업 + 시각 계약 + 근거 추적 메타를 파일 세트로 낸다. 이 세트는 다른 회의체에서 **re-import**(왕복)하거나, 하류 개발 사이클(SRS·HLD·LLD·ADR·코드)의 입력으로 태울 수 있다.
+4. **피드백 이터레이션** — 목업을 본 사람들의 피드백을 다시 대화로 추가하면, 근거 델타 기반으로 요구·제약을 고도화(develop)하고 목업을 republish한다. 만족할 때까지 반복. 버전 칩을 선택하면 그 버전의 requirements·constraints·목업이 함께 전환된다.
+5. **버전 선택 → Export(=확정)** — 만족한 버전을 버전 목록에서 골라 **Export**하면 그 버전이 확정본으로 산출된다(별도 freeze 단계 없음). 확정본 + 목업 + 시각 계약(JSON·YAML) + 근거 추적 메타를 파일 세트로 낸다. 이 세트는 다른 회의체에서 **re-import**(왕복)하거나, 하류 개발 사이클(SRS·HLD·LLD·ADR·코드)의 입력으로 태울 수 있다.
+6. **버전 정리** — 원치 않게 생긴 버전은 버전 목록에서 **우클릭 → 삭제**한다. 해당 버전에 export 이력이 있으면 경고가 뜨고, **"그래도 삭제"** 재확인한 경우에만 삭제된다.
 
 ### 스크린샷
 
@@ -156,7 +157,7 @@ npm start                 # :3000 하나에서 API + 빌드된 대시보드를 �
 
 ## 범위
 
-**범위 안** — 대화 입력·저장 · req·constraints 추출 · 목업 publish · 이터레이션·고도화 · 누락 체크 · 버전·freeze · export & 결정적 계약 추출 · re-import · 근거 추적성 · 단일 콘솔.
+**범위 안** — 대화 입력·저장 · req·constraints 추출 · 목업 publish · 이터레이션·고도화 · 누락 체크 · 버전 선택·삭제 · Export(=확정) & 결정적 계약 추출 · re-import · 근거 추적성 · 단일 콘솔.
 
 **범위 밖(하류 몫)** — SRS·ERD·OpenAPI·HLD·LLD·ADR 산출, 코드 생성. 전부 export를 소비하는 하류 개발 사이클의 몫이다. 이 제품은 그 입력(확정본·목업·계약)까지만 책임진다.
 

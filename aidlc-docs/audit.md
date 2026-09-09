@@ -90,3 +90,19 @@
 **Context**: INCEPTION(rev). 다음: 응용설계(계약) 승인 게이트 → 로컬 구현(골든패스 우선).
 
 ---
+
+## U3 content rev2
+**Timestamp**: 2026-09-09T00:00:00Z
+**User Input**: "U3(콘텐츠·문서) rev2: G 발언자 실명(이종덕·변규백·박유도·박민구·박수만), D freeze제거→버전선택 Export=확정, E export세트 visual-contract.yaml(6→7파일), H 버전 우클릭 삭제, A 진행상태 복원. 담당: fixtures/** · README.md · docs/** 만."
+**AI Response**: functional-design.md·code.md(aidlc-docs/construction/content-rev2/) 작성. G: seed-transcripts 3종 + seed-transcript.txt(레거시) + templates.json + fixture.html 발언자·예시명을 실명 캐스트로 교체(형식 `이름(역할):`, 명시적 제외·누락후보 발언 텍스트 보존, u-NNN 추적성 불변). D: README 골든패스·개념구조·export경로(v<major>→v<n>)·사용매뉴얼·범위, demo-runbook 목표흐름·파트3·마무리에서 freeze 제거→버전선택=확정. E: export 세트 표 6→7파일(visual-contract.yaml 추가). A/H: 진행상태 복원·버전 우클릭 삭제(export 이력 경고) 문서 반영. templates.json JSON 파싱 검증 통과. 실행명령은 실제 scripts와 일치 유지.
+**Context**: CONSTRUCTION rev2 / U3 콘텐츠·문서. src·dashboard·requirements·git·npm 미수정.
+
+---
+
+## U2 console rev2
+**Timestamp**: 2026-09-09T00:00:00Z
+**User Input**: "U2(단일 콘솔) 담당 — improvements-rev2 A~H를 dashboard/**에 구현. 계약은 jd 동결(shared/server 수정 금지)."
+**AI Response**: "dashboard/src/App.tsx 단일 파일 개선. A(진행 오버레이+resumeJob 복원), B(loadVersion 버전 동기화+selectedVersion), C(vbounds 근거 경계선), D(Freeze/major 제거·Export=버전단위 /export), F(폼 취소 버튼), G(실명 크게+u-NNN 병기·SAMPLES 실명 5인), H(우클릭 삭제+409 재확인 force=1). 문서: aidlc-docs/construction/console-rev2/{functional-design,code}.md. build:dashboard pass. src/shared·src/server 미수정."
+**Context**: CONSTRUCTION / U2 콘솔 rev2 (dashboard 전용, 계약 동결 준수)
+
+---

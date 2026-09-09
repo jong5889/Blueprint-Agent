@@ -1,6 +1,6 @@
 # 심사 시연 대본 (Demo Runbook)
 
-> 목표: **5분 안에** 골든패스 한 바퀴 — *회의 대화 → requirements·constraints → 목업 → 누락 체크 → freeze → export* — 를 end-to-end로 보이고, 세 가지 차별점(근거 추적성 · 커버리지 게이트 · 결정적 계약)을 각인시킨다.
+> 목표: **5분 안에** 골든패스 한 바퀴 — *회의 대화 → requirements·constraints → 목업 → 누락 체크 → 버전 선택 → export* — 를 end-to-end로 보이고, 세 가지 차별점(근거 추적성 · 커버리지 게이트 · 결정적 계약)을 각인시킨다.
 > 한 문장 메시지: *"회의에서 오간 말이 어느 요구·제약으로, 어느 화면 요소로 갔는지 전부 되짚을 수 있고, 하류로 나가는 계약은 모델 없이 늘 똑같이 뽑힙니다."*
 
 ## 사전 준비 (시연 30초 전)
@@ -18,8 +18,8 @@ npm run dev:dashboard   # :5173
 
 ## 파트 1 — 대화에서 요구·제약으로 (1분 30초)
 
-1. `fixtures/seed-transcripts/02-order-detail.txt` 내용을 좌측 대화 패널에 붙여넣는다. "실제 회의 녹취입니다. 운영팀장·CS리드·개발자·PO·디자이너의 요구가 발언별로 흩어져 있죠."
-2. **생성**을 실행한다. 상단 진행 표시가 **① 요구·제약 추출 → ② 목업 publish** 순으로 도는 것을 가리킨다.
+1. `fixtures/seed-transcripts/02-order-detail.txt` 내용을 좌측 대화 패널에 붙여넣는다. "실제 회의 녹취입니다. 박민구(운영팀장)·박수만(CS리드)·변규백(개발자)·이종덕(PO)·박유도(디자이너)의 요구가 발언별로 흩어져 있죠. 발언자는 전부 실명으로 보이고, 각 발언에 `u-NNN` 식별자가 작게 붙습니다."
+2. **생성**을 실행한다. 상단 진행 표시가 **① 요구·제약 추출 → ② 목업 publish** 순으로 도는 것을 가리킨다. (생성 중 새로고침해도 진행 상태가 서버에서 복원되는 점을 짧게 언급해도 좋다.)
 3. 완료되면 우측에 **requirements·constraints 문서**와 **목업 프리뷰**가 뜬다.
 
 **👉 강조 포인트 ① — 근거 추적성**
@@ -42,11 +42,11 @@ npm run dev:dashboard   # :5173
 
 ---
 
-## 파트 3 — freeze와 export (1분 30초)
+## 파트 3 — 버전 선택과 export (1분 30초)
 
-1. 만족한 버전을 **freeze** → major 버전으로 고정. "사람의 검토가 만족에 도달한 시점을 명시적 경계로 박습니다."
-2. **export** 실행 → `data/exports/<project>/<meeting>/v<major>/` 아래 세트가 생긴다: `requirements.md` · `constraints.md` · `mockup.html` · `visual-contract.json` · `trace.json` · `manifest.json`.
-3. `visual-contract.json`을 열어 보인다.
+1. 버전 목록에서 만족한 버전을 고른다 → 그 버전의 requirements·constraints·목업이 함께 전환되는 것을 보인다. "따로 freeze하는 단계는 없습니다. **버전을 골라 Export하는 것 자체가 확정**입니다."
+2. **export** 실행 → `data/exports/<project>/<meeting>/v<n>/` 아래 세트가 생긴다: `requirements.md` · `constraints.md` · `mockup.html` · `visual-contract.json` · `visual-contract.yaml` · `trace.json` · `manifest.json` (7파일).
+3. `visual-contract.json`(기계 판독)과 함께 사람이 읽기 쉬운 `visual-contract.yaml`을 열어 보인다.
 
 **👉 강조 포인트 ③ — 결정적 계약**
 "이 계약은 LLM이 지어낸 게 아니라, 목업 HTML의 좌표·역할·데이터 바인딩을 **기계(Playwright)가 읽어** 만든 겁니다. **같은 목업이면 언제 뽑아도 똑같은 계약**이 나오고, 이 단계 모델 비용은 0입니다." (원칙 5 / C-1)
@@ -57,7 +57,7 @@ npm run dev:dashboard   # :5173
 
 ## 파트 4 — 마무리 (30초)
 
-- 한 줄 정리: **대화 → 요구·제약(근거태그) → 목업 → 누락 체크(채택/제외) → freeze → export(확정본+목업+결정적 계약+추적 메타)**.
+- 한 줄 정리: **대화 → 요구·제약(근거태그) → 목업 → 누락 체크(채택/제외) → 버전 선택 → export(확정본+목업+결정적 계약 JSON·YAML+추적 메타)**.
 - 왕복 한마디: "이 export를 다른 회의체에서 **다시 import**하면 중요 의결사항과 근거가 그대로 복원돼 논의를 이어갑니다."
 - 못: *"우리는 AI-DLC로, AI-DLC의 앞단을 만들었습니다."*
 

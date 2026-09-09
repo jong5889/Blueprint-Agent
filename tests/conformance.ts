@@ -80,18 +80,17 @@ async function main() {
     check('T5c 델타 0 → 수정 차단 (C-4)', blocked, blocked ? '델타 0 차단됨' : '차단 안됨!');
   });
 
-  // freeze + export + T4 결정성 + T7 왕복
-  const fr = (await post('/freeze', { meetingId: m.id, version: 2 })).json as any;
-  const ex1 = (await post('/export', { meetingId: m.id, major: fr.major })).json as any;
-  await soft('T4a export 세트 6파일 (§5)', () => {
+  // rev2: freeze 없음 — 버전 선택 → export. + T4 결정성 + T7 왕복 + H 삭제방어
+  const ex1 = (await post('/export', { meetingId: m.id, version: 2 })).json as any;
+  await soft('T4a export 세트 7파일 + yaml (§5/E)', () => {
     const files = readdirSync(ex1.dir);
-    const want = ['requirements.md', 'constraints.md', 'mockup.html', 'visual-contract.json', 'trace.json', 'manifest.json'];
+    const want = ['requirements.md', 'constraints.md', 'mockup.html', 'visual-contract.json', 'visual-contract.yaml', 'trace.json', 'manifest.json'];
     const miss = want.filter(f => !files.includes(f));
-    check('T4a export 세트 6파일 (§5)', miss.length === 0, miss.length ? `누락:${miss}` : want.join(','));
+    check('T4a export 세트 7파일 + yaml (§5/E)', miss.length === 0, miss.length ? `누락:${miss}` : `7파일(yaml 포함)`);
   });
   await soft('T4b 계약 추출 결정성 (C-1)', async () => {
     const c1 = readFileSync(path.join(ex1.dir, 'visual-contract.json'), 'utf8');
-    const ex2 = (await post('/export', { meetingId: m.id, major: fr.major })).json as any;
+    const ex2 = (await post('/export', { meetingId: m.id, version: 2 })).json as any;
     const c2 = readFileSync(path.join(ex2.dir, 'visual-contract.json'), 'utf8');
     assert.equal(c1, c2, 'export 2회 계약 동일');
     const c = JSON.parse(c1);
@@ -101,6 +100,13 @@ async function main() {
     const im = (await post('/import', { dir: ex1.dir })).json as any;
     assert.ok(im.id && im.draftRequirementsMd, '재import로 새 회의체 시드');
     check('T7 export→import 왕복 (§3.7.3)', true, `new meeting ${im.id}`);
+  });
+  await soft('TH 버전 삭제 방어 (rev2 H)', async () => {
+    // v2는 export됨 → force 없이 삭제 시 409, force=1 삭제. v1(미export)은 즉시 삭제.
+    const r1 = await fetch(`${BASE}/meetings/${m.id}/versions/2`, { method: 'DELETE' });
+    const r2 = await fetch(`${BASE}/meetings/${m.id}/versions/2?force=1`, { method: 'DELETE' });
+    const r3 = await fetch(`${BASE}/meetings/${m.id}/versions/1`, { method: 'DELETE' });
+    check('TH 버전 삭제 방어 (rev2 H)', r1.status === 409 && r2.ok && r3.ok, `exported→${r1.status}, force→${r2.status}, 미export→${r3.status}`);
   });
 
   // T9 — SSE 세션 스코프

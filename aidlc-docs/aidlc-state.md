@@ -78,3 +78,10 @@
 - Phase 0(jd): 스캐폴드 동결(5ed5f56). Phase 1: 4 subagent 병렬(S-A extract/mockup/coverage · S-B contract/export/reimport · S-C 단일콘솔 · S-D 시드/문서), 전부 완료·규율 준수(shared/server 무단수정 0).
 - Phase 2(jd 통합): tsc 0 · contract self-test PASS · dashboard build PASS · 골든패스 라이브 PASS(회의→extract→mockup→coverage→델타→freeze→export 6파일→import 왕복) · conformance(rev) 12/12 PASS · 스크린샷 rev-01~04.
 - LLM: Bedrock global.anthropic.claude-opus-4-8. 저장: node:sqlite 인덱스 + 파일.
+
+## ✅ rev2 개선(A~H) DONE — subagent AI-DLC + jd 통합
+- BF: AS-BUILT rev construction 문서 소급(design.md+tasks.md, build-and-test). jd inception: rev2 계약 델타·SSOT 델타 포인터.
+- jd 배리어(3ae2b06): freeze 제거·export 버전단위·삭제+이력방어·job 영속·yaml (types/store/server).
+- subagent(각 AI-DLC 미니워크플로우+문서): U2 콘솔(A진행복원·B버전동기·C근거경계·D freeze제거·F폼닫기·G실명·H삭제) · U3 콘텐츠(실명 시드·README/runbook rev2).
+- 통합 게이트: tsc 0 · dashboard build · **rev2 골든패스 라이브**(export v2 7파일+yaml·삭제 409방어·force·재계산) · **conformance 13/13** · 스크린샷 rev2-01/02.
+- 규율: subagent가 shared/**·server/** 무수정 확인. 문서 규약 design.md+tasks.md 통일.
