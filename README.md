@@ -18,8 +18,6 @@ AI-DLC는 요구를 구조화된 산출물로 내려보내며 개발을 진행�
 <p>
   <b>
   <a href="#실사용-사례-1--fdc-spec-모니터링-대시보드">실사용 사례</a> ·
-  <a href="#사용-매뉴얼">사용법</a> ·
-  <a href="#범위">범위</a> ·
   <a href="#-for-agent-레포를-읽는-에이전트용">For Agent</a>
   </b>
 </p>
@@ -32,27 +30,14 @@ https://github.com/user-attachments/assets/fac5cd3d-2cfe-4644-a699-a80c8f0c85f7
 
 ---
 
-**해결하는 문제 — 요구사항 오해로 인한 재작업.** 소프트웨어 개발에서 가장 비싼 재작업은 "만들고 나서야 요구가 잘못 이해됐음을 발견하는 것"이다. 텍스트 요구사항은 이해관계자마다 다르게 읽히고, 그 차이는 구현이 끝난 뒤에야 드러난다.
+오해는 회의에서 이미 생기는데, 보통은 MVP가 나온 뒤에야 드러난다 — 그때는 이미 토큰·시간을 쓴 뒤다. Blueprint Agent는 회의 자리에서 **바로 볼 수 있는 목업**을 만들어 오해를 그 자리에서 소진하고, 하류(AI-DLC)가 소비할 **요구·제약·시각 계약**으로 확정한다.
 
-핵심은 **피드백 루프를 회의 자리로 당기는 것**이다. 오해는 회의에서 이미 생기는데, 보통은 MVP가 나온 뒤에야 드러난다 — 그때는 이미 토큰·시간을 쓴 뒤다. 이 제품은 회의 자리에서 **바로 볼 수 있는 목업**을 만들어 오해를 그 자리에서 소진한다.
+_흐름·아키텍처·설치·사용법 등 상세는 아래 [📎 For Agent](#-for-agent-레포를-읽는-에이전트용)._
 
 ## 실사용 사례 1 — FDC Spec 모니터링 대시보드
 
-Blueprint Agent의 export가 하류를 실제로 태울 수 있음을 보인 end-to-end 사례. 회의 녹취부터 배포된 MVP까지 사람이 코드를 처음부터 쓰지 않았다.
-
-```
-회의 대화(FDC 모니터링 논의)
-  → Blueprint Agent: requirements·constraints 추출 + 목업 5회 이터레이션(v1→v4)
-  → Export: requirements.md · constraints.md · visual-contract.yaml · trace.json · manifest.json
-  → AI-DLC v1.0.1: 인셉션(요구/제약 정제·워크플로우·설계·유닛) → 컨스트럭션(코드 생성)
-  → 산출물: 무빌드·무의존 대시보드 MVP (5축 SVG 레이더 · 표↔차트 전체 전환 · Daily/기간 조회)
-```
-
-- **export가 그대로 AI-DLC 입력이 됐다.** `visual-contract.yaml`은 컴포넌트/액션/바인딩의 단일 기준으로, `trace.json`의 `u-NNN` 근거는 요구 항목 추적으로 하류까지 이어졌다.
-- **오해가 회의에서 소진된 흔적**이 export에 남아 있다 — 목업 v1의 "조회 날짜 시각화 부족", v2의 "비율이 안 보임 → rawdata+판정 병기", "숫자 대신 레이더 차트", "축별 상태색", "표/차트 전체 일괄 전환" 요구가 전부 `[근거: u-006·u-012·u-013·u-014·u-019]`로 확정본에 반영됐다.
-- 결과 레포: **[sinsa902/fdc_dashboard](https://github.com/sinsa902/fdc_dashboard)** — Blueprint Agent export(`require/`) + AI-DLC 산출물(`aidlc-docs/`) + 실행 가능한 MVP(`index.html`)가 한 레포에 함께 보존됐다.
-
-**export 목업 ↔ AI-DLC 산출물 (스크린샷 대조)**
+회의 녹취 → Blueprint Agent export → AI-DLC → 배포 MVP까지, 사람이 코드를 처음부터 쓰지 않은 end-to-end 사례.
+결과 레포: **[sinsa902/fdc_dashboard](https://github.com/sinsa902/fdc_dashboard)** · 상세 대조표는 [For Agent](#실사용-사례-1--상세-계약-대조).
 
 <table>
 <tr>
@@ -65,157 +50,34 @@ Blueprint Agent의 export가 하류를 실제로 태울 수 있음을 보인 end
   <td><img src="screenshots/fdc-case-table.png" alt="FDC 표 보기 — Raw·Spec·Δ%·상태"></td>
   <td><img src="screenshots/fdc-case-chart.png" alt="FDC 차트 보기 — 5축 레이더, 축별 상태색"></td>
 </tr>
-<tr>
-  <td>회의 이터레이션으로 확정된 목업. 여기서 <code>visual-contract.yaml</code>이 결정적으로 추출돼 하류로 나간다.</td>
-  <td>목업의 Spec 대비 비율·판정을 Raw·Spec·<b>Δ%</b>·Status 표로 구현.</td>
-  <td>목업 카드가 남긴 차트 요구(placeholder)를 5축 레이더·축별 상태색으로 실구현.</td>
-</tr>
 </table>
 
-목업(`visual-contract.yaml`)의 요구가 그대로 구현됐다 — 5축(temperature·pressure·flow·power·uptime) 레이더, 축별 정상/warning/abnormal 상태색, Spec 대비 Δ% 판정(≤5% normal · &gt;5% warning · &gt;10% abnormal), 조회 날짜 배너.
+## 실사용 사례 2 — 사내 검색 엔진(GOGLE)
 
-**export 목업(시각 계약) ↔ AI-DLC 산출물 대조**
-
-계약이 하류에서 얼마나 충실히 소비됐는지 항목별로 검증한 표. "목업" 열은 export의 `visual-contract.yaml`(컴포넌트 `c-*`·액션 `a-*`·바인딩), "AI-DLC 산출물" 열은 결과 레포의 `index.html` 구현이다.
-
-| 요소 | 목업 (export 시각 계약) | AI-DLC 산출물 (구현) | 판정 |
-|---|---|---|---|
-| 제목/부제 | `c-title`, `c-subtitle` | `<h1>` + subtitle | ✅ 일치 |
-| 뷰 전환 | `a-view-table`/`a-view-chart` → `bind fdcSpec.viewMode` | 우상단 버튼, **전체 카드 일괄 전환** | ✅ 일치 |
-| 조회 툴바 | `c-input-from/to`, `c-select-eqp`, `a-query-range`, `a-daily-report` | From/To/EQP + 기간 조회 · Daily 리포팅 | ✅ 일치 |
-| 조회 날짜 배너 | `c-date-banner` → `bind report.queriedDate` | 날짜 배너 + 모드 표기 | ✅ 일치 |
-| 설비 카드 | `c-spec-cards`(list), `c-card-*` 339×339 정사각 | `aspect-ratio:1/1` 카드 그리드 | ✅ 일치 |
-| 카드 표 뷰 | rawdata + 판정 + 비율 (요구 항목) | Raw·Spec·**Δ%**·Status 표 | 🔎 구체화(컬럼 확정) |
-| 카드 차트 뷰 | `c-chart-*` role:`image`, box 0×0 **(placeholder)** → `bind fdcSpec.specRatio` | **5축 SVG 레이더**, score 반경, 축별 상태색 | 🔧 placeholder→실구현 |
-| 축 5종 | temperature·pressure·flow·power·uptime (영어) | 동일 5축, 영어 라벨 | ✅ 일치 |
-| 판정 기준 | Spec 대비 &gt;5% warning / &gt;10% abnormal | `computeAxis`: ≤5 normal·≤10 warning·그외 abnormal | ✅ 일치 |
-| Spec 기준값 | **미정** (목업에 절대값 없음) | 인셉션에서 mock 확정(`data/mock.js`) | ➕ 인셉션 결정 |
-| 기간 시계열 조회 | `a-query-range` result:`list` | mock 단일 스냅샷 → EQP 필터+배너까지 | ⚠️ MVP 범위 축소 |
-
-- ✅ **일치**: 계약이 손실 없이 하류로 전달됨. 뷰 전환의 "전체 일괄"(C-1 성격), 5축·판정 기준까지 계약 그대로.
-- 🔧🔎 **구체화/실구현**: 목업이 남긴 여백(차트 placeholder, 표 컬럼)을 하류가 계약 위반 없이 채움.
-- ➕⚠️ **하류 결정**: 목업에 없던 값(Spec 기준·mock 데이터)과 MVP 스코프(시계열 축소)는 AI-DLC 인셉션에서 근거를 남기고 확정 — Blueprint Agent의 "근거 없는 생성 금지"가 하류 경계에서도 지켜진 지점.
-
-> 이 사례가 "범위 밖(하류 몫)"을 실증한다 — Blueprint Agent는 확정본·목업·계약까지 책임지고, 그 입력만으로 하류(AI-DLC)가 코드를 만들어냈다.
-
-### 회의 사이클 시간 — 전통 방식 vs Blueprint
-
-여기서 든 수치는 **조작이 아니라 이 FDC 사례의 export 산출물에 실재하는 값**이다. 목업 `v1→v4`(4회 이터레이션)와 회의에서 소진된 요구 오해 5건(`u-006`·`u-012`·`u-013`·`u-014`·`u-019`)은 위 확정본·`trace.json`에 그대로 남아 있다. 그 실측을 시간 축으로 풀면 두 방식의 차이가 드러난다.
-
-**전통 방식** — 요구 오해 하나가 드러날 때마다 회의 사이클을 통째로 다시 돈다.
-
-| 단계 | 소요 | 성격 |
-|---|---|---|
-| 회의 | 1시간 | 요구 논의 |
-| 회의록 작성 | 30분 | PM 정리 |
-| PM → 개발자 요구사항 전달 | 30분 | 핸드오프 |
-| 구현 | 2시간 | 개발 |
-| **다음 회의 피드백까지** | **정체** | 오해는 구현물이 나온 뒤에야 드러남 |
-
-한 사이클이 약 4시간이지만 문제는 합산 시간이 아니라 **정체**다. 오해는 구현물을 보고 나서야 드러나므로, 매 이터레이션이 "회의 → 회의록 → 전달 → 구현 → 다음 회의까지 대기"를 처음부터 다시 돈다. FDC 사례의 `v1→v4`는 이 사이클이 최소 **3회 재반복**된다는 뜻이고, 수정 반영 사이클이 2회씩 겹치면(×2) 전체 리드타임은 회의 간격(며칠 단위)만큼 배로 늘어난다.
-
-**Blueprint 방식** — 오해를 구현 전에, 회의 자리에서 소진한다.
-
-| 단계 | 소요 | 성격 |
-|---|---|---|
-| 회의 중 실시간 목업 | 1시간 | 수정 필요사항을 즉시 목업에 반영 → `v1→v4` 4회 이터레이션과 결정을 **회의 안에서** 완료 |
-| AI-DLC 개발 | 2시간 | 확정 목업 + requirements 문서를 입력으로 코드 생성 |
-
-전통 방식이 4번의 회의 사이클에 나눠 겪던 요구 오해 5건(`u-006`·`u-012`·`u-013`·`u-014`·`u-019`)이 **단일 1시간 회의** 안에서 실시간 목업 수정으로 전부 소진됐고, 그 확정본만으로 **2시간 AI-DLC 개발**이 MVP를 냈다 — 도합 3시간. 정체 구간(다음 회의까지의 대기)이 통째로 사라진 것이 핵심이며, 이는 회의록 작성·핸드오프·재구현·재대기의 다중 사이클을 목업의 실시간 결정 하나로 접었기 때문이다.
-
-## 실사용 사례 2 — (준비 중)
-
-<!-- 예시사례2: 재료(레포·스크린샷·이터레이션 내역)를 받는 대로 아래 레이아웃을 채운다. 구조는 사례1과 동일하게 유지. -->
-
-_두 번째 end-to-end 사례를 준비 중입니다._
-
-```
-회의 대화(…)
-  → Blueprint Agent: requirements·constraints 추출 + 목업 이터레이션
-  → Export: requirements.md · constraints.md · visual-contract.yaml · trace.json · manifest.json
-  → AI-DLC: 인셉션 → 컨스트럭션
-  → 산출물: (MVP 요약)
-```
-
-- **export가 그대로 AI-DLC 입력이 됐다.** (요약)
-- **오해가 회의에서 소진된 흔적** — (핵심 이터레이션 요구 + `[근거: u-NNN]`)
-- 결과 레포: **(링크)**
-
-**export 목업 ↔ AI-DLC 산출물 (스크린샷 대조)**
+골든패스 ①~⑥을 그대로 돈 두 번째 사례 — 회의 대화로 사내 검색 엔진 콘솔 목업을 만들고 Export까지.
 
 <table>
 <tr>
-  <th width="34%">① export 목업 (<code>mockup.html</code>)</th>
-  <th width="33%">② AI-DLC 산출물 — (뷰 A)</th>
-  <th width="33%">② AI-DLC 산출물 — (뷰 B)</th>
+  <th width="33%">① 회의체</th>
+  <th width="33%">② 대화 입력</th>
+  <th width="33%">③ 생성</th>
 </tr>
 <tr>
-  <td><em>(스크린샷)</em></td>
-  <td><em>(스크린샷)</em></td>
-  <td><em>(스크린샷)</em></td>
+  <td><img src="screenshots/case2-1.png" alt="① 회의체 생성/선택"></td>
+  <td><img src="screenshots/case2-2.png" alt="② 회의 대화 입력"></td>
+  <td><img src="screenshots/case2-3.png" alt="③ requirements·constraints 정리 + 목업 생성"></td>
 </tr>
 <tr>
-  <td>(캡션)</td>
-  <td>(캡션)</td>
-  <td>(캡션)</td>
+  <th>④ 결과 확인</th>
+  <th>⑤ 누락 체크</th>
+  <th>⑥ Export</th>
+</tr>
+<tr>
+  <td><img src="screenshots/case2-4.png" alt="④ 요구·제약·목업 탭 확인"></td>
+  <td><img src="screenshots/case2-5.png" alt="⑤ 누락 체크(휴먼 게이트)"></td>
+  <td><img src="screenshots/case2-6.png" alt="⑥ 버전 확정 Export"></td>
 </tr>
 </table>
-
-## 사용 매뉴얼
-
-단일 콘솔에서 골든패스를 그대로 돈다. 좌측은 회의 대화(채팅), 우측은 산출물(요구·제약 문서 / 목업 프리뷰)이다.
-
-1. **대화 입력** — 좌측 패널에 회의 녹취를 붙여넣는다. `발언자: 내용` 형식을 쓰면 발언자별로 구분되고, 라벨 없는 줄도 하나의 발언으로 들어간다. 예시는 `fixtures/seed-transcripts/`의 3개 도메인 녹취(태스크 상세 · 주문 상세 · 진료 예약)를 그대로 붙여 쓰면 된다. 발언자는 실명(이종덕·변규백·박유도·박민구·박수만)으로 되어 있어 실제 회의처럼 읽힌다.
-2. **생성** — requirements·constraints를 추출하고(`extract`) 목업을 publish한다(`mockup`). 생성 중에는 상단에 진행 상태가 실시간 표시되고 실행 버튼이 비활성화된다. **생성 중 새로고침해도 진행 상태가 그대로 복원된다**(작업 상태는 서버에 회의체 단위로 영속). 완료되면 우측에 요구·제약 문서와 목업 프리뷰가 뜬다. 각 항목에는 `[근거: u-NNN]` 태그가 붙어 어느 발언에서 나왔는지 역추적된다. 채팅·근거 태그에서 발언자 실명이 크게, `u-NNN`이 작게 병기된다.
-3. **누락 체크(coverage)** — 대화 전체 대비 현재 요구·제약을 대조해 "요청됐으나 반영 안 된 항목"을 체크리스트로 flag한다. 각 항목을 사람이 **채택**(요구/제약으로 편입) 또는 **의도적 제외**(제외 결정 자체가 하나의 constraint가 됨) 중 하나로 처리한다. 자동 추가는 하지 않는다 — 요청은 반영처 없이 사라지지 않는다.
-4. **피드백 이터레이션** — 목업을 본 사람들의 피드백을 다시 대화로 추가하면, 근거 델타 기반으로 요구·제약을 고도화(develop)하고 목업을 republish한다. 만족할 때까지 반복. 버전 칩을 선택하면 그 버전의 requirements·constraints·목업이 함께 전환된다.
-5. **버전 선택 → Export(=확정)** — 만족한 버전을 버전 목록에서 골라 **Export**하면 그 버전이 확정본으로 산출된다(별도 freeze 단계 없음). 확정본 + 목업 + 시각 계약(JSON·YAML) + 근거 추적 메타를 파일 세트로 낸다. 이 세트는 다른 회의체에서 **re-import**(왕복)하거나, 하류 개발 사이클(SRS·HLD·LLD·ADR·코드)의 입력으로 태울 수 있다.
-6. **버전 정리** — 원치 않게 생긴 버전은 버전 목록에서 **우클릭 → 삭제**한다. 해당 버전에 export 이력이 있으면 경고가 뜨고, **"그래도 삭제"** 재확인한 경우에만 삭제된다.
-
-### 스크린샷
-
-실행 화면 캡처는 `screenshots/`에 있다. 없으면 위 URL로 직접 확인한다.
-
-### 트러블슈팅
-
-| 증상 | 원인 · 해결 |
-|---|---|
-| 서버가 `node:sqlite` 관련 오류로 안 뜸 | Node 22 미만이다. `node -v` 확인 후 22+로 올린다. |
-| 모델 단계에서 `"LLM 환경 미설정"` | `.env`에 Bedrock 또는 Anthropic 자격을 설정. 키 없이 UI는 뜨지만 extract/mockup/coverage는 실행 불가. |
-| 대시보드는 뜨는데 데이터가 안 옴 | `dev:server`가 :3000에 떠 있는지 확인. dev 대시보드(:5173)는 :3000으로 프록시한다. |
-| export의 시각 계약 추출이 실패 | Playwright Chromium이 필요하다. `npx playwright install chromium` 재실행. |
-| LAN(http)에서 접속 시 크래시 | `crypto.randomUUID`는 보안 컨텍스트(HTTPS/localhost) 전용 — 폴백 처리됨. 최신 코드로 갱신. |
-| 비동기 잡이 안 끝남 | 폴링 타임아웃 480초. LLM 지연이면 대기, 반복되면 서버 로그 확인. |
-
-## 시스템 불변 원칙 6가지
-
-전 기능에 우선한다. 어떤 기능도 이를 위반하지 않는다. (상세 제약 `requirements/constraints.md` C-1~C-6과 대응)
-
-| # | 원칙 | ↔ |
-|---|---|---|
-| 1 | 원천은 requirements·constraints, 목업은 파생물. 하류로 나가는 것은 목업 원본이 아니라 시각 계약. | C-2 |
-| 2 | 근거 없는 생성 금지. 대화에 없는 요구·제약, 요구·제약에 없는 목업 요소를 만들지 않는다. | C-3 |
-| 3 | 근거 없는 변경·삭제 금지. 고도화는 근거(대화·피드백) 없이 발생하지 않는다. | C-4 |
-| 4 | 근거 없는 휘발 금지. 등장한 요청은 채택되거나 명시적으로 제외되며, 반영처 없이 사라지지 않는다. | C-5 |
-| 5 | 계약 추출의 결정성. export 시점 시각 계약 추출은 모델을 쓰지 않는다. 동일 입력 → 동일 계약, 비용 0. | C-1 |
-| 6 | 근거 보존. 모든 산출물은 상위 산출물과 그 근거(회의 발언)를 함께 보존한다. | — |
-
-### 제약 요약 (C-1~C-6)
-
-- **C-1** export 계약 추출에 언어 모델을 도입하지 않는다(결정적·렌더 기반).
-- **C-2** 원천은 requirements·constraints, 목업은 파생물 — 목업 손편집으로 원천을 우회 수정하지 않는다.
-- **C-3** 근거 없는 보완 생성을 허용하지 않는다 — 부족한 것은 부족한 채로 둔다.
-- **C-4** 고도화(수정)는 직전 버전 + 근거 델타로만 — 델타 0이면 수정 차단.
-- **C-5** 대화에 등장한 요청은 채택 또는 명시적 제외로만 귀결 — 휘발 금지.
-- **C-6** 얇은 슬라이스 — 음성 입력 등 부수 기능이 core 골든패스를 복잡화하지 않는다.
-
-## 범위
-
-**범위 안** — 대화 입력·저장 · req·constraints 추출 · 목업 publish · 이터레이션·고도화 · 누락 체크 · 버전 선택·삭제 · Export(=확정) & 결정적 계약 추출 · re-import · 근거 추적성 · 단일 콘솔.
-
-**범위 밖(하류 몫)** — SRS·ERD·OpenAPI·HLD·LLD·ADR 산출, 코드 생성. 전부 export를 소비하는 하류 개발 사이클의 몫이다. 이 제품은 그 입력(확정본·목업·계약)까지만 책임진다.
-
-> 요구의 유일 정본(SSOT)은 `requirements/blueprint-agent-requirements.md` + `requirements/constraints.md`이고, 디자인 규격 정본은 `requirements/samsung-design-guidelines.md`다.
 
 ---
 
@@ -323,3 +185,124 @@ npm start                 # :3000 하나에서 API + 빌드된 대시보드를 �
 ```
 
 접속: **http://localhost:3000**
+
+### 사용 매뉴얼
+
+단일 콘솔에서 골든패스를 그대로 돈다. 좌측은 회의 대화(채팅), 우측은 산출물(요구·제약 문서 / 목업 프리뷰)이다.
+
+1. **대화 입력** — 좌측 패널에 회의 녹취를 붙여넣는다. `발언자: 내용` 형식을 쓰면 발언자별로 구분되고, 라벨 없는 줄도 하나의 발언으로 들어간다. 예시는 `fixtures/seed-transcripts/`의 3개 도메인 녹취(태스크 상세 · 주문 상세 · 진료 예약)를 그대로 붙여 쓰면 된다. 발언자는 실명(이종덕·변규백·박유도·박민구·박수만)으로 되어 있어 실제 회의처럼 읽힌다.
+2. **생성** — requirements·constraints를 추출하고(`extract`) 목업을 publish한다(`mockup`). 생성 중에는 상단에 진행 상태가 실시간 표시되고 실행 버튼이 비활성화된다. **생성 중 새로고침해도 진행 상태가 그대로 복원된다**(작업 상태는 서버에 회의체 단위로 영속). 완료되면 우측에 요구·제약 문서와 목업 프리뷰가 뜬다. 각 항목에는 `[근거: u-NNN]` 태그가 붙어 어느 발언에서 나왔는지 역추적된다. 채팅·근거 태그에서 발언자 실명이 크게, `u-NNN`이 작게 병기된다.
+3. **누락 체크(coverage)** — 대화 전체 대비 현재 요구·제약을 대조해 "요청됐으나 반영 안 된 항목"을 체크리스트로 flag한다. 각 항목을 사람이 **채택**(요구/제약으로 편입) 또는 **의도적 제외**(제외 결정 자체가 하나의 constraint가 됨) 중 하나로 처리한다. 자동 추가는 하지 않는다 — 요청은 반영처 없이 사라지지 않는다.
+4. **피드백 이터레이션** — 목업을 본 사람들의 피드백을 다시 대화로 추가하면, 근거 델타 기반으로 요구·제약을 고도화(develop)하고 목업을 republish한다. 만족할 때까지 반복. 버전 칩을 선택하면 그 버전의 requirements·constraints·목업이 함께 전환된다.
+5. **버전 선택 → Export(=확정)** — 만족한 버전을 버전 목록에서 골라 **Export**하면 그 버전이 확정본으로 산출된다(별도 freeze 단계 없음). 확정본 + 목업 + 시각 계약(JSON·YAML) + 근거 추적 메타를 파일 세트로 낸다. 이 세트는 다른 회의체에서 **re-import**(왕복)하거나, 하류 개발 사이클(SRS·HLD·LLD·ADR·코드)의 입력으로 태울 수 있다.
+6. **버전 정리** — 원치 않게 생긴 버전은 버전 목록에서 **우클릭 → 삭제**한다. 해당 버전에 export 이력이 있으면 경고가 뜨고, **"그래도 삭제"** 재확인한 경우에만 삭제된다.
+
+#### 스크린샷
+
+실행 화면 캡처는 `screenshots/`에 있다. 없으면 위 URL로 직접 확인한다.
+
+#### 트러블슈팅
+
+| 증상 | 원인 · 해결 |
+|---|---|
+| 서버가 `node:sqlite` 관련 오류로 안 뜸 | Node 22 미만이다. `node -v` 확인 후 22+로 올린다. |
+| 모델 단계에서 `"LLM 환경 미설정"` | `.env`에 Bedrock 또는 Anthropic 자격을 설정. 키 없이 UI는 뜨지만 extract/mockup/coverage는 실행 불가. |
+| 대시보드는 뜨는데 데이터가 안 옴 | `dev:server`가 :3000에 떠 있는지 확인. dev 대시보드(:5173)는 :3000으로 프록시한다. |
+| export의 시각 계약 추출이 실패 | Playwright Chromium이 필요하다. `npx playwright install chromium` 재실행. |
+| LAN(http)에서 접속 시 크래시 | `crypto.randomUUID`는 보안 컨텍스트(HTTPS/localhost) 전용 — 폴백 처리됨. 최신 코드로 갱신. |
+| 비동기 잡이 안 끝남 | 폴링 타임아웃 480초. LLM 지연이면 대기, 반복되면 서버 로그 확인. |
+
+### 시스템 불변 원칙 6가지
+
+전 기능에 우선한다. 어떤 기능도 이를 위반하지 않는다. (상세 제약 `requirements/constraints.md` C-1~C-6과 대응)
+
+| # | 원칙 | ↔ |
+|---|---|---|
+| 1 | 원천은 requirements·constraints, 목업은 파생물. 하류로 나가는 것은 목업 원본이 아니라 시각 계약. | C-2 |
+| 2 | 근거 없는 생성 금지. 대화에 없는 요구·제약, 요구·제약에 없는 목업 요소를 만들지 않는다. | C-3 |
+| 3 | 근거 없는 변경·삭제 금지. 고도화는 근거(대화·피드백) 없이 발생하지 않는다. | C-4 |
+| 4 | 근거 없는 휘발 금지. 등장한 요청은 채택되거나 명시적으로 제외되며, 반영처 없이 사라지지 않는다. | C-5 |
+| 5 | 계약 추출의 결정성. export 시점 시각 계약 추출은 모델을 쓰지 않는다. 동일 입력 → 동일 계약, 비용 0. | C-1 |
+| 6 | 근거 보존. 모든 산출물은 상위 산출물과 그 근거(회의 발언)를 함께 보존한다. | — |
+
+#### 제약 요약 (C-1~C-6)
+
+- **C-1** export 계약 추출에 언어 모델을 도입하지 않는다(결정적·렌더 기반).
+- **C-2** 원천은 requirements·constraints, 목업은 파생물 — 목업 손편집으로 원천을 우회 수정하지 않는다.
+- **C-3** 근거 없는 보완 생성을 허용하지 않는다 — 부족한 것은 부족한 채로 둔다.
+- **C-4** 고도화(수정)는 직전 버전 + 근거 델타로만 — 델타 0이면 수정 차단.
+- **C-5** 대화에 등장한 요청은 채택 또는 명시적 제외로만 귀결 — 휘발 금지.
+- **C-6** 얇은 슬라이스 — 음성 입력 등 부수 기능이 core 골든패스를 복잡화하지 않는다.
+
+### 범위
+
+**범위 안** — 대화 입력·저장 · req·constraints 추출 · 목업 publish · 이터레이션·고도화 · 누락 체크 · 버전 선택·삭제 · Export(=확정) & 결정적 계약 추출 · re-import · 근거 추적성 · 단일 콘솔.
+
+**범위 밖(하류 몫)** — SRS·ERD·OpenAPI·HLD·LLD·ADR 산출, 코드 생성. 전부 export를 소비하는 하류 개발 사이클의 몫이다. 이 제품은 그 입력(확정본·목업·계약)까지만 책임진다.
+
+> 요구의 유일 정본(SSOT)은 `requirements/blueprint-agent-requirements.md` + `requirements/constraints.md`이고, 디자인 규격 정본은 `requirements/samsung-design-guidelines.md`다.
+
+### 실사용 사례 1 — 상세 (계약 대조)
+
+Blueprint Agent의 export가 하류를 실제로 태울 수 있음을 보인 end-to-end 사례. 회의 녹취부터 배포된 MVP까지 사람이 코드를 처음부터 쓰지 않았다.
+
+```
+회의 대화(FDC 모니터링 논의)
+  → Blueprint Agent: requirements·constraints 추출 + 목업 5회 이터레이션(v1→v4)
+  → Export: requirements.md · constraints.md · visual-contract.yaml · trace.json · manifest.json
+  → AI-DLC v1.0.1: 인셉션(요구/제약 정제·워크플로우·설계·유닛) → 컨스트럭션(코드 생성)
+  → 산출물: 무빌드·무의존 대시보드 MVP (5축 SVG 레이더 · 표↔차트 전체 전환 · Daily/기간 조회)
+```
+
+- **export가 그대로 AI-DLC 입력이 됐다.** `visual-contract.yaml`은 컴포넌트/액션/바인딩의 단일 기준으로, `trace.json`의 `u-NNN` 근거는 요구 항목 추적으로 하류까지 이어졌다.
+- **오해가 회의에서 소진된 흔적**이 export에 남아 있다 — 목업 v1의 "조회 날짜 시각화 부족", v2의 "비율이 안 보임 → rawdata+판정 병기", "숫자 대신 레이더 차트", "축별 상태색", "표/차트 전체 일괄 전환" 요구가 전부 `[근거: u-006·u-012·u-013·u-014·u-019]`로 확정본에 반영됐다.
+- 결과 레포: **[sinsa902/fdc_dashboard](https://github.com/sinsa902/fdc_dashboard)** — Blueprint Agent export(`require/`) + AI-DLC 산출물(`aidlc-docs/`) + 실행 가능한 MVP(`index.html`)가 한 레포에 함께 보존됐다.
+
+목업(`visual-contract.yaml`)의 요구가 그대로 구현됐다 — 5축(temperature·pressure·flow·power·uptime) 레이더, 축별 정상/warning/abnormal 상태색, Spec 대비 Δ% 판정(≤5% normal · &gt;5% warning · &gt;10% abnormal), 조회 날짜 배너.
+
+계약이 하류에서 얼마나 충실히 소비됐는지 항목별로 검증한 표. "목업" 열은 export의 `visual-contract.yaml`(컴포넌트 `c-*`·액션 `a-*`·바인딩), "AI-DLC 산출물" 열은 결과 레포의 `index.html` 구현이다.
+
+| 요소 | 목업 (export 시각 계약) | AI-DLC 산출물 (구현) | 판정 |
+|---|---|---|---|
+| 제목/부제 | `c-title`, `c-subtitle` | `<h1>` + subtitle | ✅ 일치 |
+| 뷰 전환 | `a-view-table`/`a-view-chart` → `bind fdcSpec.viewMode` | 우상단 버튼, **전체 카드 일괄 전환** | ✅ 일치 |
+| 조회 툴바 | `c-input-from/to`, `c-select-eqp`, `a-query-range`, `a-daily-report` | From/To/EQP + 기간 조회 · Daily 리포팅 | ✅ 일치 |
+| 조회 날짜 배너 | `c-date-banner` → `bind report.queriedDate` | 날짜 배너 + 모드 표기 | ✅ 일치 |
+| 설비 카드 | `c-spec-cards`(list), `c-card-*` 339×339 정사각 | `aspect-ratio:1/1` 카드 그리드 | ✅ 일치 |
+| 카드 표 뷰 | rawdata + 판정 + 비율 (요구 항목) | Raw·Spec·**Δ%**·Status 표 | 🔎 구체화(컬럼 확정) |
+| 카드 차트 뷰 | `c-chart-*` role:`image`, box 0×0 **(placeholder)** → `bind fdcSpec.specRatio` | **5축 SVG 레이더**, score 반경, 축별 상태색 | 🔧 placeholder→실구현 |
+| 축 5종 | temperature·pressure·flow·power·uptime (영어) | 동일 5축, 영어 라벨 | ✅ 일치 |
+| 판정 기준 | Spec 대비 &gt;5% warning / &gt;10% abnormal | `computeAxis`: ≤5 normal·≤10 warning·그외 abnormal | ✅ 일치 |
+| Spec 기준값 | **미정** (목업에 절대값 없음) | 인셉션에서 mock 확정(`data/mock.js`) | ➕ 인셉션 결정 |
+| 기간 시계열 조회 | `a-query-range` result:`list` | mock 단일 스냅샷 → EQP 필터+배너까지 | ⚠️ MVP 범위 축소 |
+
+- ✅ **일치**: 계약이 손실 없이 하류로 전달됨. 뷰 전환의 "전체 일괄"(C-1 성격), 5축·판정 기준까지 계약 그대로.
+- 🔧🔎 **구체화/실구현**: 목업이 남긴 여백(차트 placeholder, 표 컬럼)을 하류가 계약 위반 없이 채움.
+- ➕⚠️ **하류 결정**: 목업에 없던 값(Spec 기준·mock 데이터)과 MVP 스코프(시계열 축소)는 AI-DLC 인셉션에서 근거를 남기고 확정 — Blueprint Agent의 "근거 없는 생성 금지"가 하류 경계에서도 지켜진 지점.
+
+> 이 사례가 "범위 밖(하류 몫)"을 실증한다 — Blueprint Agent는 확정본·목업·계약까지 책임지고, 그 입력만으로 하류(AI-DLC)가 코드를 만들어냈다.
+
+#### 회의 사이클 시간 — 전통 방식 vs Blueprint
+
+여기서 든 수치는 **조작이 아니라 이 FDC 사례의 export 산출물에 실재하는 값**이다. 목업 `v1→v4`(4회 이터레이션)와 회의에서 소진된 요구 오해 5건(`u-006`·`u-012`·`u-013`·`u-014`·`u-019`)은 위 확정본·`trace.json`에 그대로 남아 있다. 그 실측을 시간 축으로 풀면 두 방식의 차이가 드러난다.
+
+**전통 방식** — 요구 오해 하나가 드러날 때마다 회의 사이클을 통째로 다시 돈다.
+
+| 단계 | 소요 | 성격 |
+|---|---|---|
+| 회의 | 1시간 | 요구 논의 |
+| 회의록 작성 | 30분 | PM 정리 |
+| PM → 개발자 요구사항 전달 | 30분 | 핸드오프 |
+| 구현 | 2시간 | 개발 |
+| **다음 회의 피드백까지** | **정체** | 오해는 구현물이 나온 뒤에야 드러남 |
+
+한 사이클이 약 4시간이지만 문제는 합산 시간이 아니라 **정체**다. 오해는 구현물을 보고 나서야 드러나므로, 매 이터레이션이 "회의 → 회의록 → 전달 → 구현 → 다음 회의까지 대기"를 처음부터 다시 돈다. FDC 사례의 `v1→v4`는 이 사이클이 최소 **3회 재반복**된다는 뜻이고, 수정 반영 사이클이 2회씩 겹치면(×2) 전체 리드타임은 회의 간격(며칠 단위)만큼 배로 늘어난다.
+
+**Blueprint 방식** — 오해를 구현 전에, 회의 자리에서 소진한다.
+
+| 단계 | 소요 | 성격 |
+|---|---|---|
+| 회의 중 실시간 목업 | 1시간 | 수정 필요사항을 즉시 목업에 반영 → `v1→v4` 4회 이터레이션과 결정을 **회의 안에서** 완료 |
+| AI-DLC 개발 | 2시간 | 확정 목업 + requirements 문서를 입력으로 코드 생성 |
+
+전통 방식이 4번의 회의 사이클에 나눠 겪던 요구 오해 5건(`u-006`·`u-012`·`u-013`·`u-014`·`u-019`)이 **단일 1시간 회의** 안에서 실시간 목업 수정으로 전부 소진됐고, 그 확정본만으로 **2시간 AI-DLC 개발**이 MVP를 냈다 — 도합 3시간. 정체 구간(다음 회의까지의 대기)이 통째로 사라진 것이 핵심이며, 이는 회의록 작성·핸드오프·재구현·재대기의 다중 사이클을 목업의 실시간 결정 하나로 접었기 때문이다.
