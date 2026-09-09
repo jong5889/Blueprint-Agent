@@ -189,6 +189,24 @@ npm start                 # :3000 하나에서 API + 빌드된 대시보드를 �
 - **C-5** 대화에 등장한 요청은 채택 또는 명시적 제외로만 귀결 — 휘발 금지.
 - **C-6** 얇은 슬라이스 — 음성 입력 등 부수 기능이 core 골든패스를 복잡화하지 않는다.
 
+## 실사용 사례 — FDC Spec 모니터링 대시보드
+
+Blueprint Agent의 export가 하류를 실제로 태울 수 있음을 보인 end-to-end 사례. 회의 녹취부터 배포된 MVP까지 사람이 코드를 처음부터 쓰지 않았다.
+
+```
+회의 대화(FDC 모니터링 논의)
+  → Blueprint Agent: requirements·constraints 추출 + 목업 5회 이터레이션(v1→v4)
+  → Export: requirements.md · constraints.md · visual-contract.yaml · trace.json · manifest.json
+  → AI-DLC v1.0.1: 인셉션(요구/제약 정제·워크플로우·설계·유닛) → 컨스트럭션(코드 생성)
+  → 산출물: 무빌드·무의존 대시보드 MVP (5축 SVG 레이더 · 표↔차트 전체 전환 · Daily/기간 조회)
+```
+
+- **export가 그대로 AI-DLC 입력이 됐다.** `visual-contract.yaml`은 컴포넌트/액션/바인딩의 단일 기준으로, `trace.json`의 `u-NNN` 근거는 요구 항목 추적으로 하류까지 이어졌다.
+- **오해가 회의에서 소진된 흔적**이 export에 남아 있다 — 목업 v1의 "조회 날짜 시각화 부족", v2의 "비율이 안 보임 → rawdata+판정 병기", "숫자 대신 레이더 차트", "축별 상태색", "표/차트 전체 일괄 전환" 요구가 전부 `[근거: u-006·u-012·u-013·u-014·u-019]`로 확정본에 반영됐다.
+- 결과 레포: **[sinsa902/fdc_dashboard](https://github.com/sinsa902/fdc_dashboard)** — Blueprint Agent export(`require/`) + AI-DLC 산출물(`aidlc-docs/`) + 실행 가능한 MVP(`index.html`)가 한 레포에 함께 보존됐다.
+
+> 이 사례가 "범위 밖(하류 몫)"을 실증한다 — Blueprint Agent는 확정본·목업·계약까지 책임지고, 그 입력만으로 하류(AI-DLC)가 코드를 만들어냈다.
+
 ## 범위
 
 **범위 안** — 대화 입력·저장 · req·constraints 추출 · 목업 publish · 이터레이션·고도화 · 누락 체크 · 버전 선택·삭제 · Export(=확정) & 결정적 계약 추출 · re-import · 근거 추적성 · 단일 콘솔.
