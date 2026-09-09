@@ -26,11 +26,14 @@
 
 <img src="screenshots/hero-console.png" alt="Blueprint Agent 콘솔" width="860">
 
-<br><br>
+<br>
 
-<sub>🥚 <b>이스터에그</b> — 기능이랑 상관없는 그냥 재밌는 짤 (심심풀이)</sub><br>
-<img src="screenshots/demo-golden-path.gif" alt="재밌는 짤 1" width="300">
-<img src="screenshots/demo-iteration.gif" alt="재밌는 짤 2" width="300">
+<details>
+<summary><sub>🥚</sub></summary>
+<br>
+<img src="screenshots/demo-golden-path.gif" alt="" width="300">
+<img src="screenshots/demo-iteration.gif" alt="" width="300">
+</details>
 
 </div>
 
