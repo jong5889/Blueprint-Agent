@@ -107,6 +107,7 @@ app.post('/mockup', async (req, reply) => {
   const m = store.getMeeting(id);
   if (!m) return reply.code(404).send({ error: 'meeting not found' });
   if (!m.draftRequirementsMd && !m.draftConstraintsMd) return reply.code(400).send({ error: '먼저 requirements를 추출하세요 (/extract)' });
+  const variants = Math.max(1, Math.min(4, Number((req.body as any).variants) || 1)); // rev3 R2: 1~4 변형
   return reply.code(202).send(accepted(startJob('mockup', 'mockup', sidOf(req), id, async () => {
     const prevV = store.latestVersion(id);
     let prior: { html: string; deltaLines: string } | undefined;
@@ -120,12 +121,18 @@ app.post('/mockup', async (req, reply) => {
       mode = 'edit';
       groundingIds = [...new Set(dl.match(/u-\d{3}/g) ?? [])].sort();
     }
-    const { html } = await runMockup({ requirementsMd: m.draftRequirementsMd, constraintsMd: m.draftConstraintsMd, prior });
-    const { version, webPath } = await store.saveVersion(id, {
-      mode, parent: prevV?.n, transcriptSnapshot: m.transcript, groundingIds,
-      requirementsMd: m.draftRequirementsMd, constraintsMd: m.draftConstraintsMd, html,
-    });
-    return { webPath, version, mode };
+    const group = store.nextGroup(id);   // rev3 R2: 이번 생성의 논리 단계
+    const out: { version: number; webPath: string; variant: number }[] = [];
+    for (let i = 1; i <= variants; i++) {
+      const { html } = await runMockup({ requirementsMd: m.draftRequirementsMd, constraintsMd: m.draftConstraintsMd, prior });
+      const sv = await store.saveVersion(id, {
+        mode, parent: prevV?.n, transcriptSnapshot: m.transcript, groundingIds,
+        requirementsMd: m.draftRequirementsMd, constraintsMd: m.draftConstraintsMd, html, group, variant: i,
+      });
+      out.push({ version: sv.version, webPath: sv.webPath, variant: i });
+    }
+    // 첫 변형을 대표로 반환(호환) + 그룹/변형 목록
+    return { webPath: out[0].webPath, version: out[0].version, mode, group, variants: out };
   })));
 });
 
@@ -193,6 +200,25 @@ app.delete('/meetings/:id/versions/:n', async (req, reply) => {
     return reply.code(409).send({ error: 'exported', exported: true, message: `v${vn}은 export 이력이 있습니다. 그래도 삭제하려면 force=1.` });
   }
   return store.deleteVersion(id, vn);
+});
+
+// ── 버전 revert (rev3 R1): toVersion 이후 삭제 + 대화/draft 되감기. export 이력 있으면 409(force로 강행) ──
+app.post('/meetings/:id/revert', async (req, reply) => {
+  const { id } = req.params as any;
+  const b = req.body as any;
+  const toVersion = Number(b?.toVersion);
+  const m = store.getMeeting(id);
+  if (!m) return reply.code(404).send({ error: 'meeting not found' });
+  const target = store.getVersion(id, toVersion);
+  if (!target) return reply.code(404).send({ error: 'toVersion not found' });
+  const force = b?.force === true || String((req.query as any)?.force || '') === '1';
+  if (!force && store.hasExportAfter(m.project, id, toVersion)) {
+    return reply.code(409).send({ error: 'exported', exported: true, message: `v${toVersion} 이후에 export된 버전이 있습니다. 그래도 되감으려면 force.` });
+  }
+  const r = store.revertTo(id, toVersion);              // 이후 버전 삭제 + currentVersion 재계산
+  store.setTranscript(id, target.transcriptSnapshot);   // 대화를 그 버전 시점으로 되감기
+  store.setDraft(id, target.requirementsMd, target.constraintsMd); // draft 복원
+  return { currentVersion: r.currentVersion, transcript: target.transcriptSnapshot };
 });
 
 // ── import (sync): export 세트 → 새 회의체 시드 (왕복, §3.7.3) ──

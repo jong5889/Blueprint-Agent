@@ -12,7 +12,9 @@ export interface CoverageResolution { item: CoverageItem; action: 'adopt-req' | 
 
 // 버전 (목업 publish 단위) — req/constraints 와 목업을 함께 묶는다
 export interface Version {
-  n: number;
+  n: number;                        // 전역 고유·조작 키(export/삭제/revert)
+  group: number;                    // rev3 R2: 논리 단계(1-based). 표시 라벨 v{group}[-{variant}]
+  variant: number;                  // rev3 R2: 그룹 내 변형(1-based)
   createdAt: string;
   mode: 'create' | 'edit';
   parent?: number;
