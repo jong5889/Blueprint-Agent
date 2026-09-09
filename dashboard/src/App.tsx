@@ -6,7 +6,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 // ── 최소 API 타입 (shared/types.ts 계약의 사용분, rev2) ──
-interface Version { n: number; createdAt: string; mode: 'create' | 'edit'; parent?: number; transcriptSnapshot: string; groundingIds: string[]; requirementsMd: string; constraintsMd: string; webPath: string }
+interface Version { n: number; group: number; variant: number; createdAt: string; mode: 'create' | 'edit'; parent?: number; transcriptSnapshot: string; groundingIds: string[]; requirementsMd: string; constraintsMd: string; webPath: string }
 interface ActiveJob { id: string; kind: string; status: 'running' | 'done' | 'error' }
 interface Meeting { id: string; project: string; title: string; transcript: string; draftRequirementsMd: string; draftConstraintsMd: string; currentVersion: number; versions: Version[]; activeJob?: ActiveJob | null }
 interface ProjectSummary { project: string; meetings: { id: string; title: string }[] }
@@ -20,6 +20,7 @@ const genSessionId = (): string =>
 
 const TKEY = 'bp-transcript';
 const MKEY = 'bp-meeting';
+const SKEY = 'bp-speaker'; // rev3 R3: 최근 화자 유지
 const loadTranscripts = (): Record<string, string> => { try { return JSON.parse(localStorage.getItem(TKEY) || '{}'); } catch { return {}; } };
 const saveTranscript = (mid: string, t: string) => { const m = loadTranscripts(); m[mid] = t; localStorage.setItem(TKEY, JSON.stringify(m)); };
 
@@ -60,6 +61,8 @@ export default function App() {
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [transcript, setTranscript] = useState('');
   const [input, setInput] = useState('');
+  const [speaker, setSpeaker] = useState(() => localStorage.getItem(SKEY) || ''); // rev3 R3: 발언자 필드
+  const [variantCount, setVariantCount] = useState(1);                            // rev3 R2: 생성 변형 개수(1~4)
   const [req, setReq] = useState('');
   const [con, setCon] = useState('');
   const [mockup, setMockup] = useState<{ webPath: string; version: number; mode: string } | null>(null);
@@ -118,8 +121,12 @@ export default function App() {
 
   function applyMeeting(m: Meeting) {
     setMeeting(m); localStorage.setItem(MKEY, m.id);
-    const localT = loadTranscripts()[m.id];
-    setTranscript(localT ?? m.transcript ?? '');           // 로컬 영속 우선(새로고침 유지)
+    // rev3 R3: 로컬 vs 서버 transcript 화해 — 더 긴 쪽 채택(동률→서버). 무조건 로컬 우선 제거.
+    const localT = loadTranscripts()[m.id] ?? '';
+    const serverT = m.transcript ?? '';
+    const chosen = localT.length > serverT.length ? localT : serverT;
+    setTranscript(chosen);
+    if (chosen !== localT) saveTranscript(m.id, chosen);   // 로컬을 채택값과 동기화
     const latest = m.versions?.[m.versions.length - 1];
     setLatestVersion(latest?.n ?? m.currentVersion ?? 0);
     loadVersion(m, latest?.n ?? null);                     // rev2 B: 최신 버전 세트 로드
@@ -183,12 +190,38 @@ export default function App() {
   async function putTranscript(text: string) { if (meeting) await fetch('/meetings/' + meeting.id + '/transcript', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ transcript: text }) }); }
 
   // ── 대화 입력 ──
-  function send() {
+  async function send() {
     const t = input.trim(); if (!t || !meeting) return;
-    const line = /^.{1,15}?\s*[:：]/.test(t) ? t : `사용자: ${t}`;
+    // rev3 R3: 라벨 없으면 선택 화자(없으면 '사용자')를 실제 화자명으로 부착
+    const hasLabel = /^.{1,15}?\s*[:：]/.test(t);
+    const line = hasLabel ? t : `${(speaker.trim() || '사용자')}: ${t}`;
     const next = transcript ? transcript + '\n' + line : line;
     setTranscript(next); saveTranscript(meeting.id, next); setInput('');
-    putTranscript(next).catch(e => setError(String(e?.message ?? e)));
+    try { await putTranscript(next); }                     // rev3 R3: await 로 경쟁 제거
+    catch (e: any) { setError(String(e?.message ?? e)); }
+  }
+
+  // rev3 R1: 대화 되감기 — toVersion 이후 버전·대화·draft 되감기. export 이후 이력 → 409 재확인 후 force.
+  async function revert(toVersion: number, force = false) {
+    if (!meeting) return;
+    setError(''); setCtx(null);
+    try {
+      const r = await fetch(`/meetings/${meeting.id}/revert`, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ toVersion, force }),
+      });
+      if (r.status === 409) {
+        const d = await r.json().catch(() => ({} as any));
+        if (window.confirm((d.message || `v${toVersion} 이후 export된 버전이 있습니다.`) + '\n그래도 되감으시겠습니까?')) return revert(toVersion, true);
+        return;
+      }
+      if (!r.ok) { const e = await r.json().catch(() => ({} as any)); throw new Error(e.error || `HTTP ${r.status}`); }
+      const d = await r.json();
+      saveTranscript(meeting.id, d.transcript ?? '');       // 로컬을 되감긴 서버값으로 덮어써 reconcile 되살림 방지
+      const m: Meeting = await fetch('/meetings/' + meeting.id).then(x => x.json());
+      applyMeeting(m);                                       // 대화·버전·draft 되감김 반영
+      setNotice('선택 버전 시점으로 되감았습니다. 다음 입력으로 새 버전을 생성하세요.');
+    } catch (e: any) { setError(String(e?.message ?? e)); }
   }
   function loadSample(s: { transcript: string }) {
     if (!meeting) { setError('먼저 회의체를 선택하거나 생성하세요.'); return; }
@@ -233,10 +266,11 @@ export default function App() {
       const ex = await runAsync('/extract', { meetingId: meeting.id });
       setReq(ex.requirementsMd ?? ''); setCon(ex.constraintsMd ?? ''); setView('requirements');
       setBusy('mockup');
-      const mk = await runAsync('/mockup', { meetingId: meeting.id });
+      const mk = await runAsync('/mockup', { meetingId: meeting.id, variants: variantCount }); // rev3 R2: 변형 개수
       const m = await reloadMeeting(meeting.id);          // rev2 B: 새 버전 세트(req·con·목업)를 함께 로드
       if (m) loadVersion(m, mk.version);
-      setView('mockup'); setNotice(`목업 v${mk.version} 생성 (${mk.mode === 'edit' ? '델타 수정' : '신규'})`);
+      const nVar = mk.variants?.length ?? 1;
+      setView('mockup'); setNotice(`목업 생성 (${mk.mode === 'edit' ? '델타 수정' : '신규'}${nVar > 1 ? `, 변형 ${nVar}개` : ''})`);
     } catch (e: any) { setError(String(e?.message ?? e)); }
     finally { setBusy(null); }                    // gotcha: busy 해제는 호출부 finally
   }
@@ -314,6 +348,12 @@ export default function App() {
   // rev2 G/C: 발언 파싱 + id→실명 맵 + 버전별 근거 경계 위치(스냅샷 발언 수).
   const lines = parseLines(transcript);
   const idToName = new Map(lines.map(l => [l.id, l.who]));
+  // rev3 R2: group 으로 묶어 라벨 계산. 변형>1 → v{group}-{variant}, else v{group}. 조작 키는 n.
+  const allVersions = meeting?.versions ?? [];
+  const vByN = new Map(allVersions.map(v => [v.n, v]));
+  const groupSize = new Map<number, number>();
+  allVersions.forEach(v => groupSize.set(v.group, (groupSize.get(v.group) ?? 0) + 1));
+  const vlabel = (n: number) => { const v = vByN.get(n); if (!v) return `v${n}`; return (groupSize.get(v.group) ?? 1) > 1 ? `v${v.group}-${v.variant}` : `v${v.group}`; };
   const vbounds = new Map<number, number[]>();            // 발언 수 → 그 지점을 경계로 삼은 버전들
   (meeting?.versions ?? []).forEach(v => {
     const c = parseLines(v.transcriptSnapshot || '').length;
@@ -355,8 +395,15 @@ export default function App() {
       {/* 실행 바 */}
       <div className="shrink-0 flex flex-wrap items-center gap-2">
         <button onClick={generate} disabled={!!busy || !meeting} className={`${btn} bg-[#1428A0] text-white`}>🪄 생성 (정리·목업)</button>
+        {/* rev3 R2: 변형 개수 선택(1~4) */}
+        <label className="text-[11px] text-[#707078] flex items-center gap-1">변형
+          <select aria-label="생성 변형 개수" value={variantCount} onChange={e => setVariantCount(Number(e.target.value))} disabled={!!busy || !meeting}
+            className="rounded-full border border-[#E0E0E5] bg-white px-2 py-1 text-[11px] focus:outline-none focus:ring-2 focus:ring-[#1428A0] disabled:opacity-50">
+            {[1, 2, 3, 4].map(n => <option key={n} value={n}>{n}개</option>)}
+          </select>
+        </label>
         <button onClick={checkCoverage} disabled={!!busy || !meeting} className={`${btn} border border-[#1428A0] text-[#1428A0] bg-white`}>✅ 누락 체크</button>
-        <button onClick={doExport} disabled={!!busy || !meeting || !(selectedVersion ?? latestVersion)} className={`${btn} bg-[#1428A0] text-white`}>⬇ Export{(selectedVersion ?? latestVersion) ? ` v${selectedVersion ?? latestVersion}` : ''}</button>
+        <button onClick={doExport} disabled={!!busy || !meeting || !(selectedVersion ?? latestVersion)} className={`${btn} bg-[#1428A0] text-white`}>⬇ Export{(selectedVersion ?? latestVersion) ? ` ${vlabel(selectedVersion ?? latestVersion)}` : ''}</button>
         {busy && <span className="text-[11px] text-[#707078]">{busyLabel(busy)} 처리 중… {step ? `(${step.kind}:${step.status})` : ''}</span>}
       </div>
 
@@ -386,15 +433,22 @@ export default function App() {
                       <div className={`max-w-[85%] rounded-xl px-3 py-1.5 ${mine ? 'bg-[#1428A0] text-white' : 'bg-[#F4F4F6] text-[#111111]'}`}>{u.text}</div>
                     </div>
                     {bound && (
-                      <div className="flex items-center gap-2 my-2 text-[10px] text-[#1428A0]" aria-label={`${bound.map(n => 'v' + n).join(',')} 근거 경계`}>
-                        <span className="flex-1 h-px bg-[#1428A0]/40" />── {bound.map(n => 'v' + n).join(', ')} 근거 경계 ──<span className="flex-1 h-px bg-[#1428A0]/40" />
-                      </div>
+                      // rev3 R1: 경계선 클릭 → 그 시점(그룹 max n)으로 되감기
+                      <button type="button"
+                        onClick={() => { if (window.confirm(`${bound.map(vlabel).join(', ')} 시점으로 되감습니다.\n이후 버전과 대화가 삭제됩니다. 진행할까요?`)) revert(Math.max(...bound)); }}
+                        className="w-full flex items-center gap-2 my-2 text-[10px] text-[#1428A0] hover:text-[#0A1A80] focus:outline-none focus:ring-2 focus:ring-[#1428A0] rounded"
+                        title="클릭: 이 버전 시점으로 되감기" aria-label={`${bound.map(vlabel).join(',')} 근거 경계 — 클릭 시 되감기`}>
+                        <span className="flex-1 h-px bg-[#1428A0]/40" />── {bound.map(vlabel).join(', ')} 근거 경계 ↩ ──<span className="flex-1 h-px bg-[#1428A0]/40" />
+                      </button>
                     )}
                   </React.Fragment>
                 );
               })}
           </div>
           <div className="flex gap-2 mt-2 shrink-0">
+            {/* rev3 R3: 발언자 필드(최근 화자 localStorage 유지) — 라벨 없는 입력에 부착 */}
+            <input aria-label="발언자" value={speaker} onChange={e => { setSpeaker(e.target.value); localStorage.setItem(SKEY, e.target.value); }}
+              placeholder="화자" className="w-20 shrink-0 border border-[#E0E0E5] rounded-full px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#1428A0]" />
             <input aria-label="발언 입력" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') send(); }}
               placeholder="발언 입력 (예: 기획자: … / Enter)" className="flex-1 border border-[#E0E0E5] rounded-full px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#1428A0]" />
             <button onClick={toggleMic} disabled={!meeting || (!!busy && busy !== '/stt')} aria-label={recording ? '녹음 중지' : '녹음 시작(음성 입력)'}
@@ -417,13 +471,18 @@ export default function App() {
               <button key={k} onClick={() => setView(k)} className={`rounded-full px-4 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-[#1428A0] ${view === k ? 'bg-[#1428A0] text-white' : 'bg-[#F4F4F6] text-[#111111] hover:bg-[#E0E0E5]'}`}>{label}</button>
             ))}
             {meeting && meeting.versions?.length > 0 && (
-              <div className="ml-auto flex items-center gap-1 flex-wrap">
+              <div className="ml-auto flex items-center gap-1.5 flex-wrap">
                 <span className="text-[10px] text-[#707078]">버전:</span>
-                {meeting.versions.map(v => (
-                  <button key={v.n} onClick={() => { loadVersion(meeting, v.n); setView('mockup'); }}
-                    onContextMenu={e => { e.preventDefault(); setCtx({ n: v.n, x: e.clientX, y: e.clientY }); }}
-                    className={`text-[10px] rounded-full px-2 py-0.5 border focus:outline-none focus:ring-2 focus:ring-[#1428A0] ${selectedVersion === v.n ? 'bg-[#1428A0] text-white border-[#1428A0]' : 'bg-white text-[#707078] border-[#E0E0E5]'}`}
-                    title="클릭: 이 버전 로드 · 우클릭: 삭제" aria-label={`버전 ${v.n} (클릭 로드, 우클릭 삭제)`}>v{v.n}</button>
+                {/* rev3 R2: group 으로 묶어 표시 — 변형>1 이면 v{g}-{k}, 아니면 v{g}. 조작 키는 n. */}
+                {[...new Set(meeting.versions.map(v => v.group))].sort((a, b) => a - b).map(g => (
+                  <span key={g} className="flex items-center gap-0.5 rounded-full bg-[#F4F4F6] px-0.5 py-0.5">
+                    {meeting.versions.filter(v => v.group === g).map(v => (
+                      <button key={v.n} onClick={() => { loadVersion(meeting, v.n); setView('mockup'); }}
+                        onContextMenu={e => { e.preventDefault(); setCtx({ n: v.n, x: e.clientX, y: e.clientY }); }}
+                        className={`text-[10px] rounded-full px-2 py-0.5 border focus:outline-none focus:ring-2 focus:ring-[#1428A0] ${selectedVersion === v.n ? 'bg-[#1428A0] text-white border-[#1428A0]' : 'bg-white text-[#707078] border-[#E0E0E5]'}`}
+                        title="클릭: 이 버전 로드 · 우클릭: 삭제" aria-label={`버전 ${vlabel(v.n)} (클릭 로드, 우클릭 삭제)`}>{vlabel(v.n)}</button>
+                    ))}
+                  </span>
                 ))}
               </div>
             )}
@@ -477,7 +536,7 @@ export default function App() {
         <>
           <div className="fixed inset-0 z-20" onClick={() => setCtx(null)} onContextMenu={e => { e.preventDefault(); setCtx(null); }} />
           <div className="fixed z-30 rounded-xl border border-[#E0E0E5] bg-white shadow-lg py-1 text-xs" style={{ top: ctx.y, left: ctx.x }} role="menu">
-            <button onClick={() => deleteVersion(ctx.n)} className="block w-full text-left px-4 py-1.5 text-[#E53935] hover:bg-[#FDECEA] focus:outline-none focus:ring-2 focus:ring-[#1428A0]" role="menuitem">🗑 v{ctx.n} 삭제</button>
+            <button onClick={() => deleteVersion(ctx.n)} className="block w-full text-left px-4 py-1.5 text-[#E53935] hover:bg-[#FDECEA] focus:outline-none focus:ring-2 focus:ring-[#1428A0]" role="menuitem">🗑 {vlabel(ctx.n)} 삭제</button>
           </div>
         </>
       )}

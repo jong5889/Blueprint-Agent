@@ -20,6 +20,9 @@ import { buildExportSet } from '../stages/export.js';
 import { readExportSet } from '../stages/reimport.js';
 import { transcribe } from '../stages/stt.js';
 
+// .env 자동 로드(Node 내장, 의존성 0). 시크릿은 .env(gitignore)에만 — 코드 하드코딩 금지.
+try { (process as any).loadEnvFile?.(path.join(process.cwd(), '.env')); } catch { /* .env 없음 */ }
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const app = Fastify({ logger: { level: 'info' }, bodyLimit: 25 * 1024 * 1024 });
 // 오디오 청크(STT)는 원시 바이트로 버퍼링

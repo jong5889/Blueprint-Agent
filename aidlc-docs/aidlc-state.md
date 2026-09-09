@@ -85,3 +85,9 @@
 - subagent(각 AI-DLC 미니워크플로우+문서): U2 콘솔(A진행복원·B버전동기·C근거경계·D freeze제거·F폼닫기·G실명·H삭제) · U3 콘텐츠(실명 시드·README/runbook rev2).
 - 통합 게이트: tsc 0 · dashboard build · **rev2 골든패스 라이브**(export v2 7파일+yaml·삭제 409방어·force·재계산) · **conformance 13/13** · 스크린샷 rev2-01/02.
 - 규율: subagent가 shared/**·server/** 무수정 확인. 문서 규약 design.md+tasks.md 통일.
+
+## ✅ rev3 개선(R1~R3) DONE — subagent AI-DLC + jd
+- jd 배리어(7361cbc): types(Version group/variant)·store(nextGroup·revertTo·hasExportAfter)·server(/mockup{variants}·/revert). 라이브 검증.
+- subagent: U-console3(R1 경계클릭 revert·R2 변형 v{g}-{k} 1~4·R3 발언자필드+await+reconcile) · U-content3(demo-runbook rev3). 각 design.md+tasks.md+audit. shared/server 무수정 ✓.
+- STT 라이브 등록: .env(gitignore)에 OpenRouter mai-transcribe-2 키, server가 process.loadEnvFile로 로드. /stt 실전사 확인.
+- 게이트: tsc 0 · build · rev3 골든패스 라이브(변형·revert) · **conformance 15/15** · 스크린샷 rev3-01.

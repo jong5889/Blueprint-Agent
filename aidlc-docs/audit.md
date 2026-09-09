@@ -106,3 +106,18 @@
 **Context**: CONSTRUCTION / U2 콘솔 rev2 (dashboard 전용, 계약 동결 준수)
 
 ---
+## U-content3 rev3
+**Timestamp**: 2026-09-09T00:00:00Z
+**User Input**: "U-content3 rev3(문서): improvements-rev3 R1(버전 revert·경계 클릭 되감기)·R2(다중 변형 v{g}-{k})·R3(발언자 필드·동기화)를 docs/demo-runbook.md 시연 대본에 반영. 담당: docs/** · aidlc-docs/construction/content-rev3/** 만. README 미수정(팀원 동시작업), fixtures·src·dashboard 미수정, git/npm 미실행."
+**AI Response**: content-rev3/{design.md,tasks.md} 작성. demo-runbook.md 편집 — R3: 파트1에 발언자 선택/입력(실명 부착·최근 화자 기억) 및 서버·로컬 reconcile 각주. R2: 파트1 "N개 생성→v1-1·v1-2 변형 나열" 시연 + 파트3 v{group}-{variant} 형제 선택 서술. R1: 파트3에 `── vN 근거 경계 ──` 클릭 되감기(이후 버전 삭제·transcript 스냅샷 복원) + export 이력 경고(force 재확인) 시연. 실행명령(dev:server/dev:dashboard)은 실제 scripts와 일치 유지. README·fixtures·src·dashboard·계약 미수정.
+**Context**: CONSTRUCTION rev3 / U-content3 문서. 계약(jd 배리어)·콘솔UI(subagent)·README(팀원)는 담당 밖.
+
+---
+
+## U-console3 rev3
+**Timestamp**: 2026-09-09T00:00:00Z
+**User Input**: "U-console3 rev3: R1 경계선 클릭 revert(409 경고+force)·R2 다중변형 생성(variants 1~4, v{group}-{variant} 그룹 표시)·R3 발언자 필드+await PUT+로드 reconcile. 담당 dashboard/** 만, 계약 jd 동결."
+**AI Response**: "dashboard/src/App.tsx 단일 파일 개선. R1: 근거 경계선을 버튼화 → confirm 후 POST /meetings/:id/revert {toVersion:Math.max(...bound), force?}, 409 exported 시 재확인 후 force 재요청, 성공 후 로컬 transcript를 되감긴 서버값으로 덮고 applyMeeting 재로드. R2: variantCount(1~4) select + /mockup {variants} 전송, Version 인터페이스에 group/variant 추가, vlabel/groupSize/vByN 헬퍼로 v{group}-{variant} 라벨, 버전 칩을 group으로 묶어 렌더(조작 키 n 유지), 경계·Export·삭제 라벨 통일. R3: 발언자 필드(bp-speaker localStorage) + send()에서 라벨 없으면 화자명 부착, send() await putTranscript, applyMeeting reconcile(더 긴 쪽 채택·로컬 우선 제거). rev2 기능 회귀 없음. 문서: aidlc-docs/construction/console-rev3/{design,tasks}.md. build:dashboard pass. src/·requirements/·README·git·npm 미수정."
+**Context**: CONSTRUCTION rev3 / U-console3 (dashboard 전용, 계약 동결 준수)
+
+---

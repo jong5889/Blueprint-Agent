@@ -109,6 +109,24 @@ async function main() {
     check('TH 버전 삭제 방어 (rev2 H)', r1.status === 409 && r2.ok && r3.ok, `exported→${r1.status}, force→${r2.status}, 미export→${r3.status}`);
   });
 
+  // TV/TR — rev3 다중변형 + revert
+  await soft('TV 다중변형 v{g}-{k} + TR revert (rev3 R1/R2)', async () => {
+    const mv = (await post('/meetings', { project: 'conf', title: 'rev3-' + Date.now(), transcript: '이종덕: 로그인 화면. 이메일·비밀번호·로그인 버튼.' })).json as any;
+    await poll((await post('/extract', { meetingId: mv.id })).json.jobId);
+    const r = await poll((await post('/mockup', { meetingId: mv.id, variants: 2 })).json.jobId);
+    assert.equal(r.group, 1, 'group 1'); assert.equal(r.variants.length, 2, '변형 2개');
+    const vs = ((await get('/meetings/' + mv.id)).json as any).versions.filter((v: any) => v.group === 1);
+    assert.deepEqual(vs.map((v: any) => v.variant).sort(), [1, 2], 'variant 1,2');
+    check('TV 다중변형 v{g}-{k} (rev3 R2)', true, `group1 변형 ${r.variants.length}개`);
+    // TR: 델타로 group2 만든 뒤 v1로 revert → 이후 삭제·되감김
+    await put('/meetings/' + mv.id + '/transcript', { transcript: '이종덕: 로그인 화면. 이메일·비밀번호·로그인 버튼.\n변규백: 소셜 로그인 버튼 추가.' });
+    await poll((await post('/extract', { meetingId: mv.id })).json.jobId);
+    await poll((await post('/mockup', { meetingId: mv.id })).json.jobId);
+    const rv = (await post('/meetings/' + mv.id + '/revert', { toVersion: 1 })).json as any;
+    const mm2 = (await get('/meetings/' + mv.id)).json as any;
+    check('TR revert 되감기 (rev3 R1)', rv.currentVersion === 1 && mm2.versions.every((v: any) => v.n <= 1), `revert→v1, 남은 versions ${mm2.versions.map((v: any) => v.n)}`);
+  });
+
   // T9 — SSE 세션 스코프
   await soft('T9 SSE 세션 스코프', async () => {
     const port = Number(process.env.BP_PORT || 3900);
