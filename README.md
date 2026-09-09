@@ -17,8 +17,9 @@
 
 <details>
 <summary>&nbsp;</summary>
-<br>
-<img src="screenshots/demo-iteration.gif" alt="" width="420">
+
+https://github.com/user-attachments/assets/9e16fe6e-cdd3-42d7-be4b-d69e5d98354a
+
 </details>
 
 <p>
