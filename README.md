@@ -13,6 +13,7 @@
   <img src="https://img.shields.io/badge/React-61DAFB?logo=react&logoColor=black" alt="React">
   <img src="https://img.shields.io/badge/Fastify-000000?logo=fastify&logoColor=white" alt="Fastify">
   <img src="https://img.shields.io/badge/Powered%20by-Claude%20Opus-D97757?logo=anthropic&logoColor=white" alt="Powered by Claude">
+  <a href="screenshots/demo-iteration.gif"><img src="https://img.shields.io/badge/%F0%9F%A5%9A-secret-lightgrey" alt="secret"></a>
 </p>
 
 <p>
@@ -25,14 +26,6 @@
 </p>
 
 <img src="screenshots/hero-console.png" alt="Blueprint Agent 콘솔" width="860">
-
-<br>
-
-<details>
-<summary><sub>🥚</sub></summary>
-<br>
-<img src="screenshots/demo-iteration.gif" alt="" width="300">
-</details>
 
 </div>
 
