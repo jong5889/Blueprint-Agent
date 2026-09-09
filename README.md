@@ -1,6 +1,35 @@
-# Blueprint Agent
+<div align="center">
 
-**AI-DLC의 앞단(requirements·constraints 작성)을 고도화한다 — 회의 대화를, 눈으로 확인 가능한 목업 + 재사용 가능한 요구·제약·시각 계약 export로.**
+# 🧭 Blueprint Agent
+
+### 회의 대화를 → 눈으로 확인하는 목업 + 하류가 소비하는 요구·제약·시각 계약으로
+
+**AI-DLC의 앞단(requirements·constraints 작성)을 고도화하는 에이전트.**<br>
+오해는 회의에서 생긴다 — 그 자리에서 바로 볼 수 있는 목업으로 오해를 소진한다.
+
+<p>
+  <img src="https://img.shields.io/badge/Node-22%2B-339933?logo=node.js&logoColor=white" alt="Node 22+">
+  <img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white" alt="TypeScript">
+  <img src="https://img.shields.io/badge/React-61DAFB?logo=react&logoColor=black" alt="React">
+  <img src="https://img.shields.io/badge/Fastify-000000?logo=fastify&logoColor=white" alt="Fastify">
+  <img src="https://img.shields.io/badge/Powered%20by-Claude%20Opus-D97757?logo=anthropic&logoColor=white" alt="Powered by Claude">
+</p>
+
+<p>
+  <b>
+  <a href="#골든패스-이-제품의-핵심-흐름">골든패스</a> ·
+  <a href="#한-눈에-보는-아키텍처">아키텍처</a> ·
+  <a href="#데모">데모</a> ·
+  <a href="#시작하기">시작하기</a> ·
+  <a href="#사용-매뉴얼">사용법</a>
+  </b>
+</p>
+
+<img src="screenshots/hero-console.png" alt="Blueprint Agent 콘솔" width="860">
+
+</div>
+
+---
 
 AI-DLC는 구조화된 요구·제약을 하류로 내려보내 개발을 진행한다. 그런데 "회의에서 오간 말"을 "AI-DLC가 소비할 수 있는 요구·제약"으로 정리하는 **그 앞단**은 비어 있다. Blueprint Agent가 그 빈 곳을 채운다.
 
@@ -118,9 +147,21 @@ npm start                 # :3000 하나에서 API + 빌드된 대시보드를 �
 5. **버전 선택 → Export(=확정)** — 만족한 버전을 버전 목록에서 골라 **Export**하면 그 버전이 확정본으로 산출된다(별도 freeze 단계 없음). 확정본 + 목업 + 시각 계약(JSON·YAML) + 근거 추적 메타를 파일 세트로 낸다. 이 세트는 다른 회의체에서 **re-import**(왕복)하거나, 하류 개발 사이클(SRS·HLD·LLD·ADR·코드)의 입력으로 태울 수 있다.
 6. **버전 정리** — 원치 않게 생긴 버전은 버전 목록에서 **우클릭 → 삭제**한다. 해당 버전에 export 이력이 있으면 경고가 뜨고, **"그래도 삭제"** 재확인한 경우에만 삭제된다.
 
+### 데모
+
+<p align="center">
+  <img src="screenshots/demo-golden-path.gif" alt="골든패스 데모" width="820"><br>
+  <sub><b>골든패스</b> — 대화 입력 → 추출 → 목업 publish → 누락 체크 → Export</sub>
+</p>
+
+<p align="center">
+  <img src="screenshots/demo-iteration.gif" alt="피드백 이터레이션 데모" width="820"><br>
+  <sub><b>피드백 이터레이션</b> — 대화로 요구·제약을 고도화하고 목업 republish</sub>
+</p>
+
 ### 스크린샷
 
-실행 화면 캡처는 `screenshots/`에 있다. 없으면 위 URL로 직접 확인한다.
+정적 실행 화면 캡처는 `screenshots/`에 있다. 없으면 위 URL로 직접 확인한다.
 
 ### 트러블슈팅
 
