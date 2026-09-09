@@ -31,7 +31,6 @@
 <details>
 <summary><sub>🥚</sub></summary>
 <br>
-<img src="screenshots/demo-golden-path.gif" alt="" width="300">
 <img src="screenshots/demo-iteration.gif" alt="" width="300">
 </details>
 
