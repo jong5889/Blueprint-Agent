@@ -1,6 +1,8 @@
 # Blueprint Agent 구현 예외사항 (rev)
 
 > 이 문서는 `blueprint-agent-requirements.md`와 함께 요구의 정본(SSOT)이다. §1.4 시스템 불변 원칙과 대응한다.
+>
+> **[rev2 델타 — 활성]** (`improvements-rev2.md`): **freeze 개념 제거**(export가 확정) — C-4 "델타 없이 수정 불가"는 유지하되 freeze 관련 서술은 무효. export 세트에 **`visual-contract.yaml`** 추가. **버전 삭제 허용** — 단 해당 버전 **export 이력이 있으면 경고 후 재확인** 시에만 삭제(무근거 삭제 방어). `u-NNN`은 결정적 식별자로 유지(표시만 실명 병기).
 
 ---
 

@@ -140,3 +140,30 @@ freeze된 major마다 `data/exports/<project>/<meeting>/v<major>/` 아래:
 
 ## 8. STT 얇은 어댑터 (§4, C-6)
 마이크 → STT 전사 → `PUT /meetings/:id/transcript`에 `발언자: 내용` 라인 추가. env 키, 사용자 개시. 미동작 시 나머지 정상. 무거운 로컬처리·화자분리 설계 없음.
+
+---
+
+# rev2 계약 델타 (팀 검토 개선 A~H 반영 — requirements/improvements-rev2.md)
+
+## 변경 요지
+- **D freeze 제거**: `Version.frozen/major` 삭제, `POST /freeze`·`versionByMajor` 제거. **export는 버전 단위**(`data/exports/<project>/<meeting>/v<n>/`). 버전 선택 → Export = 확정.
+- **E yaml**: export 세트에 `visual-contract.yaml` 추가(계약 JSON+YAML 동시).
+- **H 삭제 방어**: `DELETE /versions/:n` — 해당 버전 export 이력 있으면 `409 {exported:true}` 경고, 클라 재확인 후 `?force=1`로 삭제. 최신버전 포인터 재계산.
+- **A 진행상태 영속**: 진행 중 job을 회의체에 연결 저장(`store.setActiveJob`/`getActiveJob`), `GET /meetings/:id`에 activeJob 포함 → 새로고침 복원.
+- **B 버전 동기화**: (계약 변경 없음) 콘솔이 버전 선택 시 그 버전의 requirementsMd·constraintsMd·webPath 로드(Version에 이미 보존됨).
+- **C 근거경계·G 실명·F 폼닫기**: 프론트 전용(계약 무관).
+
+## 계약 변경 (jd 배리어 — shared/server)
+- `types.ts`: `Version`에서 `frozen?/major?` 제거. `Meeting`에 `activeJob?: {id;kind;status}` 추가.
+- `store.ts`: `freezeVersion`·`versionByMajor` 제거. `exportDir`는 버전(v n) 단위. `deleteVersion(id,n)`(+최신 재계산), `hasExport(id,n)`(export 디렉토리 존재), `setActiveJob/clearActiveJob`.
+- `server.ts`: `/freeze` 제거. `POST /export {meetingId, version}`(major→version). `DELETE /versions/:n`(+ `force`). job 시작 시 setActiveJob, 완료/에러 시 clear. `/meetings/:id`에 activeJob 노출.
+- `sse.ts`: 변경 없음.
+
+## rev2 유닛(로컬 subagent) — 겹치지 않는 파일
+| 유닛 | 담당 파일 | 개선 |
+|---|---|---|
+| U1 export/yaml | `src/stages/{export,reimport}.ts` | E(visual-contract.yaml)·버전단위 |
+| U2 콘솔 | `dashboard/**` | A(진행오버레이+복원)·B(버전 로드)·C(근거경계선)·F(폼닫기)·G(실명 크게+u-NNN 작게)·H(우클릭삭제+이력경고) |
+| U3 콘텐츠·문서 | `fixtures/**`·README·docs | G(시드 발언자 실명 5인)·문서 rev2 |
+
+배리어(jd): 위 계약 변경 동결 후 U1~U3 병렬. 각 subagent는 AI-DLC construction 미니 워크플로우 + `aidlc-docs/construction/<unit>/` 문서 강제.

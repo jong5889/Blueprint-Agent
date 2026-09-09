@@ -1,5 +1,7 @@
 # Workflow Plan
 
+> ⚠️ **SUPERSEDED (v1/v2 이력).** 현행은 로컬 개발(플릿 미사용). rev 구현 분해는 `aidlc-docs/construction/plans/units-and-slices.md`, rev2 계획은 application-design "rev2 계약 델타" 참조.
+
 **Constraint**: 5-hour hackathon. Fresh fleet re-development from frozen contract (Q2). Orchestrated from `blueprint-ssh` via `fleet.sh`.
 
 ## Stage decisions

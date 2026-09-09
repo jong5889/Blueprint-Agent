@@ -1,3 +1,5 @@
+> ⚠️ **SUPERSEDED (v2 이력).** 현행 요구 정본은 `requirements/blueprint-agent-requirements.md`(rev + rev2 델타)이며, 계약은 `aidlc-docs/inception/application-design/application-design.md`(rev/rev2)다. 이 문서는 단일-고객모드 diet(v2) 시절 기록으로 남긴다.
+
 # Requirements Analysis — Blueprint Agent (Minimal Depth)
 
 ## Intent Analysis
