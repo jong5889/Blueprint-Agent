@@ -16,7 +16,7 @@
 </p>
 
 <details>
-<summary><img src="https://img.shields.io/badge/%F0%9F%A5%9A-secret-lightgrey" alt="secret"></summary>
+<summary>&nbsp;</summary>
 <br>
 <img src="screenshots/demo-iteration.gif" alt="" width="420">
 </details>
