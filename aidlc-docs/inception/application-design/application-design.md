@@ -167,3 +167,20 @@ freeze된 major마다 `data/exports/<project>/<meeting>/v<major>/` 아래:
 | U3 콘텐츠·문서 | `fixtures/**`·README·docs | G(시드 발언자 실명 5인)·문서 rev2 |
 
 배리어(jd): 위 계약 변경 동결 후 U1~U3 병렬. 각 subagent는 AI-DLC construction 미니 워크플로우 + `aidlc-docs/construction/<unit>/` 문서 강제.
+
+---
+
+# rev3 계약 델타 (개선 R1~R3 — requirements/improvements-rev3.md)
+
+## 계약 변경 (jd 배리어 — shared/server)
+- `types.ts`: `Version`에 `group: number`(논리 단계) + `variant: number`(그룹 내) 추가. 표시 라벨 = 변형>1 → `v{group}-{variant}`, else `v{group}`. `n`은 전역 고유·조작 키 유지.
+- `store.ts`: `saveVersion`이 group/variant 수용(+자동 계산: 새 생성=maxGroup+1, 변형=동일 group). `revertTo(id, toVersion)`(이후 버전 삭제+최신 재계산). `hasExportAfter(id, toVersion)`(되감기 방어). getMeeting/rowToVersion에 group/variant.
+- `server.ts`: `POST /mockup { meetingId, variants? }` — N회 생성 루프(동일 group, variant 1..N), 결과에 group/variant. `POST /meetings/:id/revert { toVersion, force? }` — 이후 export 이력 있으면 409, force 시 revertTo + transcript 스냅샷 복원 + draft 복원.
+
+## rev3 유닛(subagent) — 겹치지 않는 파일
+| 유닛 | 담당 파일 | 개선 |
+|---|---|---|
+| U-console3 | `dashboard/**` | R1 경계클릭 revert(409 경고+force) · R2 변형 그룹 표시·다중선택·"N개 생성" · R3 발언자 필드+await PUT+로드 reconcile |
+| U-content3 | `README.md`·`docs/**` | rev3 문서 갱신 |
+
+배리어(jd): 위 계약 변경 동결 후 U-console3·U-content3 병렬. 각 subagent AI-DLC 미니워크플로우 + `construction/<unit>/design.md·tasks.md`.

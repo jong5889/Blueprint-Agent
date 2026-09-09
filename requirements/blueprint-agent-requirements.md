@@ -5,6 +5,7 @@
 > **[rev2 델타 — 활성]** 팀 검토 개선(A~H)이 `improvements-rev2.md`로 확정됨. 아래 본문 대비 변경점:
 > - **§3.6 freeze 제거** — 버전 선택 → **Export = 확정**(별도 freeze 없음). §3.7 export는 **버전 단위**로 산출하고 세트에 **`visual-contract.yaml`** 추가.
 > - **§3.9 콘솔**: 생성 중 진행 표시 강화 + 새로고침 시 진행상태 복원 / 버전 선택 시 requirements·constraints·목업 **함께 전환** / 채팅에 버전 근거 **경계 가로선** / 발언자 **실명 크게 + `u-NNN` 작게 병기**(예시 실명: 이종덕·변규백·박유도·박민구·박수만) / 새 회의체 폼 닫기 버튼 / 버전 **우클릭 삭제**(export 이력 있으면 경고 후 재확인).
+> - **[rev3]** 버전 revert(경계 클릭)·다중변형 생성(v{g}-{k})·다중입력 동기화(발언자 필드+await+reconcile) → `improvements-rev3.md`.
 > - 상세·수용기준은 `improvements-rev2.md`, 계약 델타는 `aidlc-docs/inception/application-design/application-design.md` "rev2 계약 델타" 참조.
 
 ---
