@@ -214,6 +214,28 @@ Blueprint Agent의 export가 하류를 실제로 태울 수 있음을 보인 end
 
 목업(`visual-contract.yaml`)의 요구가 그대로 구현됐다 — 5축(temperature·pressure·flow·power·uptime) 레이더, 축별 정상/warning/abnormal 상태색, Spec 대비 Δ% 판정(≤5% normal · &gt;5% warning · &gt;10% abnormal), 조회 날짜 배너.
 
+**export 목업(시각 계약) ↔ AI-DLC 산출물 대조**
+
+계약이 하류에서 얼마나 충실히 소비됐는지 항목별로 검증한 표. "목업" 열은 export의 `visual-contract.yaml`(컴포넌트 `c-*`·액션 `a-*`·바인딩), "AI-DLC 산출물" 열은 결과 레포의 `index.html` 구현이다.
+
+| 요소 | 목업 (export 시각 계약) | AI-DLC 산출물 (구현) | 판정 |
+|---|---|---|---|
+| 제목/부제 | `c-title`, `c-subtitle` | `<h1>` + subtitle | ✅ 일치 |
+| 뷰 전환 | `a-view-table`/`a-view-chart` → `bind fdcSpec.viewMode` | 우상단 버튼, **전체 카드 일괄 전환** | ✅ 일치 |
+| 조회 툴바 | `c-input-from/to`, `c-select-eqp`, `a-query-range`, `a-daily-report` | From/To/EQP + 기간 조회 · Daily 리포팅 | ✅ 일치 |
+| 조회 날짜 배너 | `c-date-banner` → `bind report.queriedDate` | 날짜 배너 + 모드 표기 | ✅ 일치 |
+| 설비 카드 | `c-spec-cards`(list), `c-card-*` 339×339 정사각 | `aspect-ratio:1/1` 카드 그리드 | ✅ 일치 |
+| 카드 표 뷰 | rawdata + 판정 + 비율 (요구 항목) | Raw·Spec·**Δ%**·Status 표 | 🔎 구체화(컬럼 확정) |
+| 카드 차트 뷰 | `c-chart-*` role:`image`, box 0×0 **(placeholder)** → `bind fdcSpec.specRatio` | **5축 SVG 레이더**, score 반경, 축별 상태색 | 🔧 placeholder→실구현 |
+| 축 5종 | temperature·pressure·flow·power·uptime (영어) | 동일 5축, 영어 라벨 | ✅ 일치 |
+| 판정 기준 | Spec 대비 &gt;5% warning / &gt;10% abnormal | `computeAxis`: ≤5 normal·≤10 warning·그외 abnormal | ✅ 일치 |
+| Spec 기준값 | **미정** (목업에 절대값 없음) | 인셉션에서 mock 확정(`data/mock.js`) | ➕ 인셉션 결정 |
+| 기간 시계열 조회 | `a-query-range` result:`list` | mock 단일 스냅샷 → EQP 필터+배너까지 | ⚠️ MVP 범위 축소 |
+
+- ✅ **일치**: 계약이 손실 없이 하류로 전달됨. 뷰 전환의 "전체 일괄"(C-1 성격), 5축·판정 기준까지 계약 그대로.
+- 🔧🔎 **구체화/실구현**: 목업이 남긴 여백(차트 placeholder, 표 컬럼)을 하류가 계약 위반 없이 채움.
+- ➕⚠️ **하류 결정**: 목업에 없던 값(Spec 기준·mock 데이터)과 MVP 스코프(시계열 축소)는 AI-DLC 인셉션에서 근거를 남기고 확정 — Blueprint Agent의 "근거 없는 생성 금지"가 하류 경계에서도 지켜진 지점.
+
 > 이 사례가 "범위 밖(하류 몫)"을 실증한다 — Blueprint Agent는 확정본·목업·계약까지 책임지고, 그 입력만으로 하류(AI-DLC)가 코드를 만들어냈다.
 
 ## 범위
