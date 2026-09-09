@@ -1,22 +1,17 @@
-# Code — U7 console (AS-BUILT)
+# Tasks — U7 console (rev AS-BUILT)
 
-## 구현 파일
-| 파일 | 역할 |
-|---|---|
-| `dashboard/src/App.tsx` | 단일 콘솔 SPA 전체(상태·API 헬퍼·골든패스·뷰) |
-| `dashboard/src/main.tsx` | React 마운트 |
-| `dashboard/src/style.css` | Tailwind 진입 |
+> rev2 개선(A/B/C/F/G/H)은 `construction/console-rev2/` 에서 추가 진행.
 
-## 핵심 함수 / 근거
-- `generate` — §4 골든패스 체인(extract→mockup). `runAsync` 잡 폴링(§3 비동기 계약).
-- `checkCoverage`/`resolveCoverage` — §6 C-5 휴먼 게이트 UI.
-- `freeze`/`doExport` — §3 /freeze·/export.
-- `toggleMic` — §4/C-6 STT 어댑터 소비(U8).
-- `useEffect(EventSource '/events?sid=')` — §4 세션 스코프 SSE(진행 칩·오류만, 결과는 폴링).
-- `genSessionId` 폴백 — 부록 D LAN http secure-context gotcha.
-- 내장 SAMPLES 2건(비정본 데모 녹취).
+## 작업 체크리스트
+- [x] `dashboard/src/App.tsx` — 단일 통합 콘솔(모드 분리 없음)
+- [x] `generate` 골든패스 체인(extract→mockup) + `runAsync` 잡 폴링(2s)
+- [x] `checkCoverage`/`resolveCoverage` — 휴먼 게이트 UI(C-5)
+- [x] freeze/export UI(rev) — ※ rev2에서 freeze 제거·버전선택 export로 대체 예정
+- [x] `useEffect(EventSource '/events?sid=')` — 세션 스코프 SSE(진행칩·오류; 결과는 폴링)
+- [x] `genSessionId` 폴백(LAN http secure-context) · 대화 localStorage 영속
+- [x] a11y focus ring·aria-label 전반 적용 · 내장 SAMPLES 데모 녹취
+- [ ] 단축키·maximize 오버레이 미구현(rev 스펙 대비 축소) — rev2에서 필요 시 보강
 
-## 검증 상태
-- 서버 정적 서빙(`dashboard/dist`) 배선됨(server.ts). 데모 가동 이력(auto-memory).
-- 자동 테스트 없음(SPA, 코드에서 확인). a11y focus ring·aria-label은 클래스 레벨로 전반 적용(코드 확인).
-- 미구현: 단축키·maximize 오버레이(spec 대비 축소).
+## 검증
+- [x] dashboard build PASS · 데모 스크린샷 rev-01~05 · 정적 서빙 배선(server.ts)
+- [ ] SPA 자동 테스트 없음

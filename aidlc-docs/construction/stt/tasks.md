@@ -1,17 +1,12 @@
-# Code — U8 stt (AS-BUILT)
+# Tasks — U8 stt (얇은 어댑터, §4/C-6)
 
-## 구현 파일
-| 파일 | 역할 |
-|---|---|
-| `src/stages/stt.ts` | `transcribe(audio,filename)` — env 프로바이더 선택, OpenAI 호환 전사 |
-| `src/server/server.ts` | `POST /stt` + `audio/*` raw buffer content-type parser, 확장자 매핑 |
-| `dashboard/src/App.tsx` | `toggleMic` — MediaRecorder→/stt→입력창 삽입 |
+## 작업 체크리스트
+- [x] `src/stages/stt.ts` — `transcribe(audio,filename)`, env 프로바이더 자동선택
+- [x] 프로바이더 우선순위: OpenRouter `microsoft/mai-transcribe-2` → OpenAI `whisper-1`(올바른 base와 짝지음)
+- [x] 서버 `POST /stt` + `audio/*` raw buffer content-type parser + content-type→확장자 매핑
+- [x] `toggleMic`(App) — MediaRecorder 녹음 → /stt → 입력창 삽입(사용자 검토 게이트)
+- [x] 원음 미저장(전사 텍스트만) · 키 하드코딩 없음(env) · 미설정 시 /stt만 실패
 
-## 핵심 함수 / 근거
-- `transcribe` — §8 얇은 어댑터. 프로바이더 우선순위 OpenRouter mai-transcribe-2 → OpenAI whisper-1, 전부 env(§8 env 키).
-- server 오디오 파서 `addContentTypeParser(/^audio\//, parseAs:'buffer')` — 원시 바이트 버퍼링.
-- `toggleMic` — 녹음 blob→POST /stt→text 입력창 삽입(사용자 검토 게이트).
-
-## 검증 상태
-- 자동 테스트 없음(외부 API 의존, C-6 취지상 생략). 미설정 시 /stt만 500, core 라우트 무영향(코드 확인).
-- 실제 전사는 env 키·네트워크 필요 — 실행 로그는 코드에서 확인 안 됨.
+## 검증
+- [x] 배선 검증: say→wav 실오디오 POST /stt → 전사 API 도달(멀티파트·포맷·인증 정상; 429=계정 크레딧, 코드 무관)
+- [ ] 실제 전사 성공은 크레딧 있는 `STT_API_KEY`(OpenRouter) 주입 시(라이브 확인 대기)
