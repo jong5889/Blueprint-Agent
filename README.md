@@ -205,6 +205,15 @@ Blueprint Agent의 export가 하류를 실제로 태울 수 있음을 보인 end
 - **오해가 회의에서 소진된 흔적**이 export에 남아 있다 — 목업 v1의 "조회 날짜 시각화 부족", v2의 "비율이 안 보임 → rawdata+판정 병기", "숫자 대신 레이더 차트", "축별 상태색", "표/차트 전체 일괄 전환" 요구가 전부 `[근거: u-006·u-012·u-013·u-014·u-019]`로 확정본에 반영됐다.
 - 결과 레포: **[sinsa902/fdc_dashboard](https://github.com/sinsa902/fdc_dashboard)** — Blueprint Agent export(`require/`) + AI-DLC 산출물(`aidlc-docs/`) + 실행 가능한 MVP(`index.html`)가 한 레포에 함께 보존됐다.
 
+**결과물 — 표 보기 / 차트 보기 (우상단 버튼으로 전체 카드 일괄 전환)**
+
+<p>
+  <img src="screenshots/fdc-case-table.png" alt="FDC 대시보드 표 보기 — 설비별 Raw·Spec·Δ%·상태" width="49%">
+  <img src="screenshots/fdc-case-chart.png" alt="FDC 대시보드 차트 보기 — 5축 레이더, 축별 상태색" width="49%">
+</p>
+
+목업(`visual-contract.yaml`)의 요구가 그대로 구현됐다 — 5축(temperature·pressure·flow·power·uptime) 레이더, 축별 정상/warning/abnormal 상태색, Spec 대비 Δ% 판정(≤5% normal · &gt;5% warning · &gt;10% abnormal), 조회 날짜 배너.
+
 > 이 사례가 "범위 밖(하류 몫)"을 실증한다 — Blueprint Agent는 확정본·목업·계약까지 책임지고, 그 입력만으로 하류(AI-DLC)가 코드를 만들어냈다.
 
 ## 범위
