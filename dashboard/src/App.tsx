@@ -4,6 +4,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { driver } from 'driver.js';
+import 'driver.js/dist/driver.css';
 
 // ── 최소 API 타입 (shared/types.ts 계약의 사용분, rev2) ──
 interface Version { n: number; group: number; variant: number; createdAt: string; mode: 'create' | 'edit'; parent?: number; transcriptSnapshot: string; groundingIds: string[]; requirementsMd: string; constraintsMd: string; webPath: string }
@@ -95,6 +97,43 @@ export default function App() {
 
   // ── 부팅: 프로젝트 목록 + 마지막 회의체 복원 ──
   useEffect(() => { refreshProjects(); const last = localStorage.getItem(MKEY); if (last) openMeeting(last); }, []); // eslint-disable-line
+
+  // ── 첫 방문 튜토리얼(1회, localStorage 판정). 부팅 복원이 끝나도록 살짝 지연. ──
+  useEffect(() => {
+    if (localStorage.getItem('bp-tour')) return;
+    localStorage.setItem('bp-tour', '1');
+    const t = setTimeout(startTutorial, 700);
+    return () => clearTimeout(t);
+  }, []); // eslint-disable-line
+
+  // 튜토리얼: 팝오버 안내만 — 서버에 샘플 회의를 만들지 않는다(방문자마다 DB 오염 방지).
+  // 투어 종료 시 채워진 예시 회의체(FDC ITL)를 열어준다(runTour onDestroyed).
+  function startTutorial() { runTour(); }
+
+  // 투어가 끝나면 채워진 예시 회의체(FDC ITL)를 열어 실제 결과를 보여준다. 없으면 조용히 건너뜀.
+  async function openSampleProject() {
+    try {
+      const d = await fetch('/projects').then(r => r.json());
+      const fdc = (d.projects ?? []).find((p: any) => p.project === 'FDC ITL');
+      const mid = fdc?.meetings?.[0]?.id;
+      if (mid) { await refreshProjects(); await openMeeting(mid); }
+    } catch { /* 서버 미가동 */ }
+  }
+
+  function runTour() {
+    driver({
+      showProgress: true, nextBtnText: '다음 →', prevBtnText: '← 이전', doneBtnText: '완료',
+      onDestroyed: () => { openSampleProject(); },
+      steps: [
+        { element: '#tour-new', popover: { title: '① 회의체', description: '먼저 회의체를 만들거나 상단 드롭다운에서 선택합니다.' } },
+        { element: '#tour-convo', popover: { title: '② 대화 입력', description: '회의 녹취를 붙여넣거나 예시(1/2)를 불러옵니다. 아래 입력창에 "화자: 내용" 형식으로 발언을 추가할 수도 있어요.' } },
+        { element: '#tour-generate', popover: { title: '③ 🪄 생성', description: '대화에서 requirements·constraints를 정리하고 목업까지 한 번에 만듭니다. 옆에서 변형 개수(1~4)도 고를 수 있어요.' } },
+        { element: '#tour-views', popover: { title: '④ 결과 확인', description: '정리된 요구·제약과 생성된 목업을 탭으로 전환하며 확인합니다.' } },
+        { element: '#tour-coverage', popover: { title: '⑤ 누락 체크 (휴먼 게이트)', description: '대화에 있었지만 빠진 요청을 찾아 채택/제외합니다. 반영 후 다시 🪄 생성하면 델타가 적용됩니다. (⑤↔③ 반복)' } },
+        { element: '#tour-export', popover: { title: '⑥ ⬇ Export', description: '만족스러운 버전을 확정해 내보냅니다. 버전 칩(우측)에서 클릭=로드·우클릭=삭제, 대화의 근거 경계 클릭=되감기도 됩니다. 골든패스 완료!' } },
+      ],
+    }).drive();
+  }
 
   async function refreshProjects() {
     try { const d = await fetch('/projects').then(r => r.json()); setProjects(d.projects ?? []); } catch { /* 서버 미가동 */ }
@@ -371,7 +410,8 @@ export default function App() {
           <option value="">회의체 선택…</option>
           {allMeetings.map(mm => <option key={mm.id} value={mm.id}>{mm.project} · {mm.title}</option>)}
         </select>
-        <button onClick={() => setShowNew(v => !v)} className={`${btn} border border-[#1428A0] text-[#1428A0] bg-white`}>+ 새 회의체</button>
+        <button id="tour-new" onClick={() => setShowNew(v => !v)} className={`${btn} border border-[#1428A0] text-[#1428A0] bg-white`}>+ 새 회의체</button>
+        <button onClick={startTutorial} title="사용법 둘러보기" className={`${btn} border border-[#E0E0E5] text-[#707078] bg-white`}>❔ 둘러보기</button>
 
         <div className="flex gap-2 items-center ml-auto flex-wrap">
           {chips.map(c => (
@@ -394,7 +434,7 @@ export default function App() {
 
       {/* 실행 바 */}
       <div className="shrink-0 flex flex-wrap items-center gap-2">
-        <button onClick={generate} disabled={!!busy || !meeting} className={`${btn} bg-[#1428A0] text-white`}>🪄 생성 (정리·목업)</button>
+        <button id="tour-generate" onClick={generate} disabled={!!busy || !meeting} className={`${btn} bg-[#1428A0] text-white`}>🪄 생성 (정리·목업)</button>
         {/* rev3 R2: 변형 개수 선택(1~4) */}
         <label className="text-[11px] text-[#707078] flex items-center gap-1">변형
           <select aria-label="생성 변형 개수" value={variantCount} onChange={e => setVariantCount(Number(e.target.value))} disabled={!!busy || !meeting}
@@ -402,8 +442,8 @@ export default function App() {
             {[1, 2, 3, 4].map(n => <option key={n} value={n}>{n}개</option>)}
           </select>
         </label>
-        <button onClick={checkCoverage} disabled={!!busy || !meeting} className={`${btn} border border-[#1428A0] text-[#1428A0] bg-white`}>✅ 누락 체크</button>
-        <button onClick={doExport} disabled={!!busy || !meeting || !(selectedVersion ?? latestVersion)} className={`${btn} bg-[#1428A0] text-white`}>⬇ Export{(selectedVersion ?? latestVersion) ? ` ${vlabel(selectedVersion ?? latestVersion)}` : ''}</button>
+        <button id="tour-coverage" onClick={checkCoverage} disabled={!!busy || !meeting} className={`${btn} border border-[#1428A0] text-[#1428A0] bg-white`}>✅ 누락 체크</button>
+        <button id="tour-export" onClick={doExport} disabled={!!busy || !meeting || !(selectedVersion ?? latestVersion)} className={`${btn} bg-[#1428A0] text-white`}>⬇ Export{(selectedVersion ?? latestVersion) ? ` ${vlabel(selectedVersion ?? latestVersion)}` : ''}</button>
         {busy && <span className="text-[11px] text-[#707078]">{busyLabel(busy)} 처리 중… {step ? `(${step.kind}:${step.status})` : ''}</span>}
       </div>
 
@@ -414,7 +454,7 @@ export default function App() {
       {/* 본문: 좌 대화 · 우 뷰 */}
       <div className="flex-1 flex flex-col md:flex-row gap-2 min-h-0">
         {/* 좌: 대화 */}
-        <aside className="md:w-96 shrink-0 flex flex-col rounded-2xl border border-[#E0E0E5] bg-white p-3 min-h-0">
+        <aside id="tour-convo" className="md:w-96 shrink-0 flex flex-col rounded-2xl border border-[#E0E0E5] bg-white p-3 min-h-0">
           <div className="font-bold shrink-0 mb-2 flex items-center gap-2">대화 (회의 녹취)
             <span className="ml-auto text-[10px] font-normal text-[#707078]">예시:</span>
             {SAMPLES.map((s, i) => <button key={i} onClick={() => loadSample(s)} className="text-[10px] rounded-full px-2 py-0.5 bg-[#F4F4F6] border border-[#E0E0E5] hover:bg-[#E0E0E5] focus:outline-none focus:ring-2 focus:ring-[#1428A0]">{i + 1}</button>)}
@@ -466,7 +506,7 @@ export default function App() {
               <div className="text-xs font-medium text-[#1428A0]">{busyLabel(busy)} 처리 중…{step ? ` (${step.kind}:${step.status})` : ''}</div>
             </div>
           )}
-          <div className="shrink-0 flex flex-wrap gap-2 p-3 border-b border-[#E0E0E5]">
+          <div id="tour-views" className="shrink-0 flex flex-wrap gap-2 p-3 border-b border-[#E0E0E5]">
             {([['requirements', '📋 requirements'], ['constraints', '🚫 constraints'], ['mockup', '🖼 목업'], ['coverage', '✅ 누락 체크']] as [View, string][]).map(([k, label]) => (
               <button key={k} onClick={() => setView(k)} className={`rounded-full px-4 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-[#1428A0] ${view === k ? 'bg-[#1428A0] text-white' : 'bg-[#F4F4F6] text-[#111111] hover:bg-[#E0E0E5]'}`}>{label}</button>
             ))}
