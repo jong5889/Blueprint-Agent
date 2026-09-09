@@ -18,9 +18,7 @@
 <details>
 <summary>&nbsp;</summary>
 <br>
-
-https://github.com/jong5889/Blueprint-Agent/raw/main/screenshots/demo.mp4
-
+<video src="https://github.com/jong5889/Blueprint-Agent/raw/main/screenshots/demo.mp4" controls width="480"></video>
 </details>
 
 <p>
