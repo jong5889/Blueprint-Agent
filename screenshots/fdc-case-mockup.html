@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FDC Spec 모니터링 대시보드</title>
+<style>
+  :root{
+    --accent:#1428A0;--text:#111111;--sub:#707078;--card:#F4F4F6;
+    --line:#E0E0E5;--canvas:#FFFFFF;--ok:#00C853;--warn:#FF9800;--err:#E53935;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--canvas);color:var(--text);
+    font-family:'SamsungOne',-apple-system,'Segoe UI',Roboto,sans-serif;
+    font-weight:400;line-height:1.5;}
+  .wrap{max-width:1080px;margin:0 auto;padding:24px 16px;}
+  .header-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+  h1{font-weight:700;font-size:24px;margin:0 0 8px;}
+  .subtitle{color:var(--sub);margin:0 0 24px;font-size:14px;}
+  .view-switch{display:flex;gap:8px;}
+  .toolbar{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;
+    background:var(--card);border:1px solid var(--line);border-radius:16px;
+    padding:16px;margin-bottom:24px;}
+  .field{display:flex;flex-direction:column;gap:8px;}
+  .field label{font-size:13px;color:var(--sub);}
+  input,select{padding:8px 16px;border:1px solid var(--line);border-radius:8px;
+    font-size:14px;background:var(--canvas);color:var(--text);font-family:inherit;}
+  input:focus,select:focus,button:focus{outline:2px solid var(--accent);outline-offset:2px;}
+  .btn{border-radius:9999px;padding:8px 24px;font-size:14px;cursor:pointer;
+    font-family:inherit;border:1px solid var(--accent);}
+  .btn-primary{background:var(--accent);color:#fff;}
+  .btn-secondary{background:transparent;color:var(--accent);}
+  .actions{display:flex;gap:8px;}
+  .date-banner{display:flex;align-items:center;gap:16px;
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:16px;margin-bottom:24px;}
+  .date-banner .date-label{font-size:13px;color:var(--sub);}
+  .date-banner .date-value{font-size:20px;font-weight:700;color:var(--accent);}
+  .card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+    gap:16px;}
+  .eqp-card{aspect-ratio:1/1;display:flex;flex-direction:column;
+    background:var(--card);border:1px solid var(--line);border-radius:16px;
+    padding:16px;box-shadow:0 4px 20px rgba(0,0,0,0.05);}
+  .card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+  .eqp-card .eqp-id{font-size:16px;font-weight:700;}
+  .metric-list{display:flex;flex-direction:column;gap:8px;flex:1;overflow:auto;}
+  .metric{display:flex;align-items:center;justify-content:space-between;
+    gap:8px;padding:8px 0;border-bottom:1px solid var(--line);}
+  .metric:last-child{border-bottom:none;}
+  .metric-info{display:flex;flex-direction:column;}
+  .metric-name{font-size:13px;color:var(--sub);}
+  .metric-val{font-size:14px;font-weight:700;}
+  .metric-ratio{font-size:12px;color:var(--sub);}
+  .badge{display:inline-block;border-radius:20px;padding:0 16px;height:24px;
+    line-height:24px;font-size:12px;font-weight:700;color:#fff;}
+  .badge-normal{background:var(--ok);}
+  .badge-warning{background:var(--warn);}
+  .badge-abnormal{background:var(--err);}
+  .chart-view{display:none;flex:1;align-items:center;justify-content:center;flex-direction:column;gap:8px;}
+  /* 전체 일괄 전환: 컨테이너에 chart-mode 부여 */
+  .card-grid.chart-mode .metric-list{display:none;}
+  .card-grid.chart-mode .chart-view{display:flex;}
+  .radar{width:100%;max-width:200px;}
+  .chart-legend{display:flex;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--sub);justify-content:center;}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:middle;}
+  .dot-normal{background:var(--ok);}
+  .dot-warning{background:var(--warn);}
+  .dot-abnormal{background:var(--err);}
+  .legend{display:flex;gap:16px;margin-top:24px;font-size:13px;color:var(--sub);
+    flex-wrap:wrap;}
+  .legend .badge{margin-right:8px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header-row">
+    <div>
+      <h1 data-bp-id="c-title" data-bp-role="title">FDC Spec 모니터링 대시보드</h1>
+      <p class="subtitle" data-bp-id="c-subtitle" data-bp-role="subtitle">설비별 FDC Spec 정상범위·Spec Over 상태를 Daily 리포팅으로 모니터링합니다.</p>
+    </div>
+    <div class="view-switch" data-bp-id="c-view-switch" data-bp-role="container" aria-label="보기 방식 전환">
+      <button type="button" class="btn btn-secondary" data-bp-id="a-view-table" data-bp-role="button"
+        data-bp-action="switch;fdcSpec;viewMode;table" aria-label="모든 카드 표 보기로 전환"
+        onclick="document.getElementById('c-spec-cards').classList.remove('chart-mode')">표 보기</button>
+      <button type="button" class="btn btn-primary" data-bp-id="a-view-chart" data-bp-role="button"
+        data-bp-action="switch;fdcSpec;viewMode;chart" aria-label="모든 카드 차트 보기로 전환"
+        onclick="document.getElementById('c-spec-cards').classList.add('chart-mode')">차트 보기</button>
+    </div>
+  </div>
+
+  <section class="toolbar" data-bp-id="c-toolbar" data-bp-role="container" aria-label="조회 도구">
+    <div class="field" data-bp-id="c-field-from" data-bp-role="field">
+      <label for="date-from">조회 시작일</label>
+      <input type="date" id="date-from" data-bp-id="c-input-from" data-bp-role="input" aria-label="조회 시작일">
+    </div>
+    <div class="field" data-bp-id="c-field-to" data-bp-role="field">
+      <label for="date-to">조회 종료일</label>
+      <input type="date" id="date-to" data-bp-id="c-input-to" data-bp-role="input" aria-label="조회 종료일">
+    </div>
+    <div class="field" data-bp-id="c-field-eqp" data-bp-role="field">
+      <label for="eqp-select">설비 EQP ID</label>
+      <select id="eqp-select" data-bp-id="c-select-eqp" data-bp-role="select" data-bp-bind="eqp.eqpId" aria-label="설비 EQP ID 선택">
+        <option value="">전체</option>
+        <option value="EQP-001">EQP-001</option>
+        <option value="EQP-002">EQP-002</option>
+        <option value="EQP-003">EQP-003</option>
+      </select>
+    </div>
+    <div class="actions">
+      <button type="button" class="btn btn-primary" data-bp-id="a-query-range" data-bp-role="button"
+        data-bp-action="query;fdcSpec;dateFrom,dateTo,eqpId;list" aria-label="기간별 범위 조회">기간 조회</button>
+      <button type="button" class="btn btn-secondary" data-bp-id="a-daily-report" data-bp-role="button"
+        data-bp-action="report;fdcSpec;date;daily" aria-label="Daily 리포팅 조회">Daily 리포팅</button>
+    </div>
+  </section>
+
+  <section class="date-banner" data-bp-id="c-date-banner" data-bp-role="container" aria-label="조회된 날짜 정보">
+    <span class="date-label" data-bp-id="c-date-label" data-bp-role="text">조회된 날짜</span>
+    <span class="date-value" data-bp-id="c-date-value" data-bp-role="text" data-bp-bind="report.queriedDate">2024-06-10</span>
+  </section>
+
+  <section class="card-grid" data-bp-id="c-spec-cards" data-bp-role="list" aria-label="설비 FDC Spec 상태 카드 목록">
+
+    <article class="eqp-card" data-bp-id="c-card-1" data-bp-role="listitem">
+      <div class="card-head">
+        <div class="eqp-id" data-bp-role="text" data-bp-bind="fdcSpec.eqpId">EQP-001</div>
+      </div>
+      <div class="metric-list">
+        <div class="metric" data-bp-role="container">
+          <div class="metric-info">
+            <span class="metric-name" data-bp-role="text" data-bp-bind="fdcSpec.specItem">Temperature</span>
+            <span class="metric-val" data-bp-role="text" data-bp-bind="fdcSpec.rawData">251.2 / 250.0</span>
+            <span class="metric-ratio" data-bp-role="text" data-bp-bind="fdcSpec.specRatio">Spec 대비 100.5%</span>
+          </div>
+          <span class="badge badge-normal" data-bp-role="badge" data-bp-bind="fdcSpec.status">Normal</span>
+        </div>
+        <div class="metric" data-bp-role="container">
+          <div class="metric-info">
+            <span class="metric-name" data-bp-role="text" data-bp-bind="fdcSpec.specItem">Pressure</span>
+            <span class="metric-val" data-bp-role="text" data-bp-bind="fdcSpec.rawData">106.5 / 100.0</span>
+            <span class="metric-ratio" data-bp-role="text" data-bp-bind="fdcSpec.specRatio">Spec 대비 106.5%</span>
+          </div>
+          <span class="badge badge-warning" data-bp-role="badge" data-bp-bind="fdcSpec.status">Warning</span>
+        </div>
+        <div class="metric" data-bp-role="container">
+          <div class="metric-info">
+            <span class="metric-name" data-bp-role="text" data-bp-bind="fdcSpec.specItem">Flow</span>
+            <span class="metric-val" data-bp-role="text" data-bp-bind="fdcSpec.rawData">49.5 / 50.0</span>
+            <span class="metric-ratio" data-bp-role="text" data-bp-bind="fdcSpec.specRatio">Spec 대비 99.0%</span>
+          </div>
+          <span class="badge badge-normal" data-bp-role="badge" data-bp-bind="fdcSpec.status">Normal</span>
+        </div>
+        <div class="metric" data-bp-role="container">
+          <div class="metric-info">
+            <span class="metric-name" data-bp-role="text" data-bp-bind="fdcSpec.specItem">Power</span>
+            <span class="metric-val" data-bp-role="text" data-bp-bind="fdcSpec.rawData">30.2 / 30.0</span>
+            <span class="metric-ratio" data-bp-role="text" data-bp-bind="fdcSpec.specRatio">Spec 대비 100.7%</span>
+          </div>
+          <span class="badge badge-normal" data-bp-role="badge" data-bp-bind="fdcSpec.status">Normal</span>
+        </div>
+        <div class="metric" data-bp-role="container">
+          <div class="metric-info">
+            <span class="metric-name" data-bp-role="text" data-bp-bind="fdcSpec.specItem">Uptime</span>
+            <span class="metric-val" data-bp-role="text" data-bp-bind="fdcSpec.rawData">22.1 / 24.0</span>
+            <span class="metric-ratio" data-bp-role="text" data-bp-bind="fdcSpec.specRatio">Spec 대비 92.1%</span>
+          </div>
+          <span class="badge badge-normal" data-bp-role="badge" data-bp-bind="fdcSpec.status">Normal</span>
+        </div>
+      </div>
+      <div class="chart-view" data-bp-id="c-chart-1" data-bp-role="image" data-bp-bind="fdcSpec.specRatio" aria-label="EQP-001 항목별 Spec 대비 비율 레이더 차트">
+        <svg class="radar" viewBox="0 0 200 200" role="img" aria-label="Temperature/Pressure/Flow/Power/Uptime 레이더 차트">
+          <polygon points="100,10 185,72 152,180 48,180 15,72" fill="none" stroke="#E0E0E5"/>
+          <polygon points="100,55 145,84 133,150 67,150 55,84" fill="none" stroke="#E0E0E5"/>
+          <polygon points="100,20 178,75 148,172 55,169 30,80" fill="rgba(20,40,160,0.15)" stroke="#1428A0" stroke-width="2"/>
+          <circle cx="100" cy="20" r="5" fill="#00C853"/>
+          <circle cx="178" cy="75" r="5" fill="#FF9800"/>
+          <circle cx="148" cy="172" r="5" fill="#00C853"/>
+          <circle cx="55" cy="169" r="5" fill="#00C853"/>
+          <circle cx="30" cy="80" r="5" fill="#00C853"/>
+          <text x="100" y="8" font-size="9" text-anchor="middle" fill="#707078">Temperature</text>
+          <text x="192" y="72" font-size="9" text-anchor="middle" fill="#707078">Pressure</text>
+          <text x="152" y="194" font-size="9" text-anchor="middle" fill="#707078">Flow</text>
+          <text x="48" y="194" font-size="9" text-anchor="middle" fill="#707078">Power</text>
+          <text x="10" y="72" font-size="9" text-anchor="middle" fill="#707078">Uptime</text>
+        </svg>
+        <div class="chart-legend" data-bp-role="text">
+          <span><span class="dot dot-normal"></span>Normal</span>
+          <span><span class="dot dot-warning"></span>Warning</span>
+          <span><span class="dot dot-abnormal"></span>Abnormal</span>
+        </div>
+      </div>
+    </article>
+
+    <article class="eqp-card" data-bp-id="c-card-2" data-bp-role="listitem">
+      <div class="card-head">
+        <div class="eqp-id" data-bp-role="text" data-bp-bind="fdcSpec.eqpId">EQP-002</div>
+      </div>
+      <div class="metric-list">
+        <div class="metric" data-bp-role="container">
+          <div class="metric-info">
+            <span class="metric-name" data-bp-role="text" data-bp-bind="fdcSpec.specItem">Flow</span>
+            <span class="metric-val" data-bp-role="text" data-bp-bind="fdcSpec.rawData">55.8 / 50.0</span>
+            <span class="metric-ratio" data-bp-role="text" data-bp-bind="fdcSpec.specRatio">Spec 대비 111.6%</span>
+          </div>
+          <span class="badge badge-abnormal" data-bp-role="badge" data-bp-bind="fdcSpec.status">Abnormal</span>
+        </div>
+        <div class="metric" data-bp-role="container">
+          <div class="metric-info">
+            <span class="metric-name" data-bp-role="text" data-bp-bind="fdcSpec.specItem">Temperature</span>
+            <span class="metric-val" data-bp-role="text" data-bp-bind="fdcSpec.rawData">248.0 / 250.0</span>
+            <span class="metric-ratio" data-bp-role="text" data-bp-bind="fdcSpec.specRatio">Spec 대비 99.2%</span>
+          </div>
+          <span class="badge badge-normal" data-bp-role="badge" data-bp-bind="fdcSpec.status">Normal</span>
+        </div>
+        <div class="metric" data-bp-role="container">
+          <div class="metric-info">
+            <span class="metric-name" data-bp-role="text" data-bp-bind="fdcSpec.specItem">Pressure</span>
+            <span class="metric-val" data-bp-role="text" data-bp-bind="fdcSpec.rawData">103.0 / 100.0</span>
+            <span class="metric-ratio" data-bp-role="text" data-bp-bind="fdcSpec.specRatio">Spec 대비 103.0%</span>
+          </div>
+          <span class="badge badge-normal" data-bp-role="badge" data-bp-bind="fdcSpec.status">Normal</span>
+        </div>
+        <div class="metric" data-bp-role="container">
+          <div class="metric-info">
+            <span class="metric-name" data-bp-role="text" data-bp-bind="fdcSpec.specItem">Power</span>
+            <span class="metric-val" data-bp-role="text" data-bp-bind="fdcSpec.rawData">31.8 / 30.0</span>
+            <span class="metric-ratio" data-bp-role="text" data-bp-bind="fdcSpec.specRatio">Spec 대비 106.0%</span>
+          </div>
+          <span class="badge badge-warning" data-bp-role="badge" data-bp-bind="fdcSpec.status">Warning</span>
+        </div>
+        <div class="metric" data-bp-role="container">
+          <div class="metric-info">
+            <span class="metric-name" data-bp-role="text" data-bp-bind="fdcSpec.specItem">Uptime</span>
+            <span class="metric-val" data-bp-role="text" data-bp-bind="fdcSpec.rawData">23.5 / 24.0</span>
+            <span class="metric-ratio" data-bp-role="text" data-bp-bind="fdcSpec.specRatio">Spec 대비 97.9%</span>
+          </div>
+          <span class="badge badge-normal" data-bp-role="badge" data-bp-bind="fdcSpec.status">Normal</span>
+        </div>
+      </div>
+      <div class="chart-view" data-bp-id="c-chart-2" data-bp-role="image" data-bp-bind="fdcSpec.specRatio" aria-label="EQP-002 항목별 Spec 대비 비율 레이더 차트">
+        <svg class="radar" viewBox="0 0 200 200" role="img" aria-label="Temperature/Pressure/Flow/Power/Uptime 레이더 차트">
+          <polygon points="100,10 185,72 152,180 48,180 15,72" fill="none" stroke="#E0E0E5"/>
+          <polygon points="100,55 145,84 133,150 67,150 55,84" fill="none" stroke="#E0E0E5"/>
+          <polygon points="100,15 178,74 160,180 50,175 28,80" fill="rgba(20,40,160,0.15)" stroke="#1428A0" stroke-width="2"/>
+          <circle cx="100" cy="15" r="5" fill="#00C853"/>
+          <circle cx="178" cy="74" r="5" fill="#00C853"/>
+          <circle cx="160" cy="180" r="5" fill="#E53935"/>
+          <circle cx="50" cy="175" r="5" fill="#FF9800"/>
+          <circle cx="28" cy="80" r="5" fill="#00C853"/>
+          <text x="100" y="8" font-size="9" text-anchor="middle" fill="#707078">Temperature</text>
+          <text x="192" y="72" font-size="9" text-anchor="middle" fill="#707078">Pressure</text>
+          <text x="152" y="194" font-size="9" text-anchor="middle" fill="#707078">Flow</text>
+          <text x="48" y="194" font-size="9" text-anchor="middle" fill="#707078">Power</text>
+          <text x="10" y="72" font-size="9" text-anchor="middle" fill="#707078">Uptime</text>
+        </svg>
+        <div class="chart-legend" data-bp-role="text">
+          <span><span class="dot dot-normal"></span>Normal</span>
+          <span><span class="dot dot-warning"></span>Warning</span>
+          <span><span class="dot dot-abnormal"></span>Abnormal</span>
+        </div>
+      </div>
+    </article>
+
+    <article class="eqp-card" data-bp-id="c-card-3" data-bp-role="listitem">
+      <div class="card-head">
+        <div class="eqp-id" data-bp-role="text" data-bp-bind="fdcSpec.eqpId">EQP-003</div>
+      </div>
+      <div class="metric-list">
+        <div class="metric" data-bp-role="container">
+          <div class="metric-info">
+            <span class="metric-name" data-bp-role="text" data-bp-bind="fdcSpec.specItem">Temperature</span>
+            <span class="metric-val" data-bp-role="text" data-bp-bind="fdcSpec.rawData">249.5 / 250.0</span>
+            <span class="metric-ratio" data-bp-role="text" data-bp-bind="fdcSpec.specRatio">Spec 대비 99.8%</span>
+          </div>
+          <span class="badge badge-normal" data-bp-role="badge" data-bp-bind="fdcSpec.status">Normal</span>
+        </div>
+        <div class="metric" data-bp-role="container">
+          <div class="metric-info">
+            <span class="metric-name" data-bp-role="text" data-bp-bind="fdcSpec.specItem">Pressure</span>
+            <span class="metric-val" data-bp-role="text" data-bp-bind="fdcSpec.rawData">99.0 / 100.0</span>
+            <span class="metric-ratio" data-bp-role="text" data-bp-bind="fdcSpec.specRatio">Spec 대비 99.0%</span>
+          </div>
+          <span class="badge badge-normal" data-bp-role="badge" data-bp-bind="fdcSpec.status">Normal</span>
+        </div>
+        <div class="metric" data-bp-role="container">
+          <div class="metric-info">
+            <span class="metric-name" data-bp-role="text" data-bp-bind="fdcSpec.specItem">Flow</span>
+            <span class="metric-val" data-bp-role="text" data-bp-bind="fdcSpec.rawData">50.2 / 50.0</span>
+            <span class="metric-ratio" data-bp-role="text" data-bp-bind="fdcSpec.specRatio">Spec 대비 100.4%</span>
+          </div>
